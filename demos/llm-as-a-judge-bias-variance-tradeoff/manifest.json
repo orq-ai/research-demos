@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "slug": "llm-as-a-judge-bias-variance-tradeoff",
+  "title": "Bias–Variance in LLM-as-a-Judge",
+  "authors": ["Bauke Brenninkmeijer"],
+  "published": "2026-05-22",
+  "updated": "2026-05-22",
+  "summary": "Single judge, repetition, and panels — when bias averages out and when it doesn’t.",
+  "tags": ["evaluation", "llm-judge"],
+  "source": {
+    "repo": "orq-ai/research",
+    "path": "docs/2-pagers/llm-as-a-judge-bias-variance-tradeoff",
+    "commit": "0a0245c3674162a1ebd78891f8b52b00f00a27fe",
+    "ingested": "2026-05-22"
+  },
+  "artifacts": [
+    {"kind": "doc",       "file": "doc.html",       "icon": "doc",    "label": "Read the 2-pager"},
+    {"kind": "slides",    "file": "slides.html",    "icon": "slides", "label": "View slides"},
+    {"kind": "explainer", "file": "explainer.html", "icon": "spark",  "label": "Interactive explainer"},
+    {"kind": "pdf",       "file": "slides.pdf",     "icon": "pdf",    "label": "Download PDF"}
+  ]
+}

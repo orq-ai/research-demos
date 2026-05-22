@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Orq Research Demos — default OG image -->
+  <rect width="1200" height="630" fill="#FAF9F5"/>
+  <!-- Clay accent line -->
+  <rect x="80" y="80" width="64" height="4" rx="2" fill="#D97757"/>
+  <!-- Wordmark -->
+  <text x="80" y="300" font-family="ui-serif,Georgia,'Times New Roman',serif" font-size="52" font-weight="500" fill="#87867F" letter-spacing="-0.5">ORQ RESEARCH</text>
+  <!-- Big title -->
+  <text x="80" y="420" font-family="ui-serif,Georgia,'Times New Roman',serif" font-size="120" font-weight="500" fill="#141413" letter-spacing="-3">Demos</text>
+  <!-- Bottom accent line -->
+  <rect x="80" y="540" width="1040" height="1" fill="#D1CFC5"/>
+  <text x="80" y="575" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="18" fill="#87867F" letter-spacing="1.5">orq-ai.github.io/research-demos</text>
+</svg>

@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bias–Variance in LLM-as-a-Judge — an interactive explainer</title>
+<style>
+  :root {
+    --ivory:   #FAF9F5;
+    --slate:   #141413;
+    --clay:    #D97757;
+    --oat:     #E3DACC;
+    --olive:   #788C5D;
+    --sky:     #6A8CAF;
+    --gold:    #C2A83E;
+    --rust:    #B04A3F;
+    --gray-150:#F0EEE6;
+    --gray-300:#D1CFC5;
+    --gray-500:#87867F;
+    --gray-700:#3D3D3A;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ivory);
+    color: var(--gray-700);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    padding: 56px 24px 120px;
+  }
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 48px;
+  }
+  @media (max-width: 960px) { .page { grid-template-columns: 1fr; } aside { order: 2; position: static; } }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 34px;
+    color: var(--slate);
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+    line-height: 1.15;
+  }
+  .lead { max-width: 680px; margin-bottom: 8px; }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 23px;
+    color: var(--slate);
+    margin: 40px 0 12px;
+  }
+  p { margin-bottom: 12px; max-width: 720px; }
+  code { font-family: var(--mono); font-size: 13px; background: var(--gray-150); padding: 1px 5px; border-radius: 3px; }
+  em { font-style: italic; }
+  .term {
+    border-bottom: 1.5px dotted var(--clay);
+    cursor: help;
+    color: var(--slate);
+  }
+
+  /* demo panel */
+  .demo {
+    border: 1.5px solid var(--gray-300);
+    border-radius: 14px;
+    background: #fff;
+    padding: 24px;
+    margin: 16px 0 8px;
+  }
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 760px) { .demo-grid { grid-template-columns: 1fr; } }
+
+  .viz-box { background: var(--gray-150); border-radius: 8px; padding: 16px; }
+  .viz-box svg { display: block; width: 100%; }
+  .viz-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray-500);
+    margin-bottom: 8px;
+  }
+
+  .controls { font-size: 13px; margin-top: 18px; }
+  .controls .row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .controls label { width: 110px; color: var(--gray-500); font-family: var(--mono); font-size: 11px; }
+  .controls .val { font-family: var(--mono); font-size: 12px; color: var(--slate); width: 34px; text-align: right; }
+  .controls input[type=range] { flex: 1; accent-color: var(--clay); }
+  .controls button {
+    appearance: none;
+    border: 1.5px solid var(--gray-300);
+    background: var(--gray-150);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin-right: 6px;
+  }
+  .controls button:hover { background: var(--oat); }
+
+  .readout {
+    border-top: 1px solid var(--gray-300);
+    margin-top: 16px;
+    padding-top: 14px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .readout b { color: var(--slate); font-family: var(--mono); }
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-right: 4px;
+  }
+  .pill.bias  { background: rgba(217,119,87,0.15); color: var(--clay); }
+  .pill.var   { background: rgba(120,140,93,0.15); color: var(--olive); }
+  .pill.total { background: rgba(20,20,19,0.08); color: var(--slate); }
+
+  /* compare table */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 720px;
+    font-size: 13.5px;
+    margin: 12px 0;
+  }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--gray-300); }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); font-weight: 500; }
+  td.bad { color: var(--rust); }
+  td.good { color: var(--olive); }
+  td.meh { color: var(--gray-700); }
+
+  /* glossary */
+  aside {
+    position: sticky;
+    top: 32px;
+    align-self: start;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 12px;
+    background: #fff;
+    padding: 18px 18px 8px;
+  }
+  aside .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    margin-bottom: 12px;
+  }
+  aside dl dt {
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--slate);
+    margin-top: 0;
+  }
+  aside dl dd {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--gray-700);
+    margin: 2px 0 14px;
+  }
+  aside dl dt.hl, aside dl dt.hl + dd {
+    background: rgba(217,119,87,0.10);
+    margin-left: -8px; margin-right: -8px;
+    padding-left: 8px; padding-right: 8px;
+    border-radius: 4px;
+  }
+  ul.refs { list-style: none; font-size: 12.5px; line-height: 1.6; }
+  ul.refs li { padding-left: 16px; position: relative; margin-bottom: 8px; }
+  ul.refs li::before { content: ""; position: absolute; left: 0; top: 0.7em; width: 8px; height: 1px; background: var(--clay); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <main>
+    <div class="eyebrow">Research · concept explainer</div>
+    <h1>Bias and variance in LLM-as-a-judge, in one diagram</h1>
+    <p class="lead">
+      You have an LLM scoring outputs. Should you call it once, ten times, or call ten different models?
+      The classical bias–variance tradeoff gives a clean answer — and the recent literature on LLM judges
+      formalizes it. Move the sliders below and watch which error component shrinks.
+    </p>
+
+    <h2>The decomposition</h2>
+    <p>
+      Zhu et al. (2026) model each judge score as a sum of four random pieces:
+      <span class="term" data-term="scenario">scenario</span> difficulty (&alpha;),
+      <span class="term" data-term="generation">generation</span> noise (&beta;),
+      <span class="term" data-term="judgebias">judge bias</span> (&gamma;), and
+      <span class="term" data-term="residual">residual</span> noise (&epsilon;).
+      The benchmark mean's variance splits cleanly across these four terms.
+    </p>
+    <p>
+      Here's the catch: averaging more samples from one judge only shrinks &alpha;, &beta;, &epsilon;.
+      The &gamma; term — the judge's systematic skew — is <em>unchanged</em> by repetition. You can only
+      shrink &gamma; by adding <em>distinct</em> judges.
+    </p>
+
+    <div class="demo">
+      <div class="demo-grid">
+        <div>
+          <div class="viz-label">Where scores land — bullseye = truth</div>
+          <div class="viz-box">
+            <svg id="dart" viewBox="0 0 260 260" style="max-width:300px; margin: 0 auto;"></svg>
+          </div>
+        </div>
+        <div>
+          <div class="viz-label">Variance decomposition</div>
+          <div class="viz-box">
+            <svg id="bar" viewBox="0 0 280 260" style="max-width:300px; margin: 0 auto;"></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="row">
+          <label>judges (K)</label>
+          <input id="kSlider" type="range" min="1" max="5" value="1">
+          <span class="val" id="kVal">1</span>
+        </div>
+        <div class="row">
+          <label>calls / item</label>
+          <input id="nSlider" type="range" min="1" max="10" value="1">
+          <span class="val" id="nVal">1</span>
+        </div>
+        <div class="row">
+          <label>strategy</label>
+          <button data-preset="single">single, 1 call</button>
+          <button data-preset="repeat">repeat single</button>
+          <button data-preset="panel">panel (PoLL)</button>
+          <button data-preset="cyclic">CyclicJudge</button>
+        </div>
+        <div class="readout" id="readout"></div>
+      </div>
+    </div>
+    <p style="font-size:13px; color:var(--gray-500); max-width:720px;">
+      Bullseye marks the true score. Each dot is a benchmark replication. Bar shows the four
+      variance components. Watch the orange (&gamma;) segment: only the judge slider moves it.
+    </p>
+
+    <h2>Strategy vs. error</h2>
+    <table>
+      <thead>
+        <tr><th>strategy</th><th>variance</th><th>bias</th><th>cost</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Single judge, 1 call</td>
+          <td class="bad">high</td>
+          <td class="bad">high</td>
+          <td class="good">1×</td>
+        </tr>
+        <tr>
+          <td>Single judge, N calls</td>
+          <td class="good">low</td>
+          <td class="bad">unchanged</td>
+          <td class="meh">N×</td>
+        </tr>
+        <tr>
+          <td><span class="term" data-term="poll">PoLL</span> (K diverse judges, vote)</td>
+          <td class="meh">medium</td>
+          <td class="good">low</td>
+          <td class="good">K× — but small models, ~7× cheaper net (Verga 2024)</td>
+        </tr>
+        <tr>
+          <td><span class="term" data-term="cyclic">CyclicJudge</span> (round-robin)</td>
+          <td class="good">lowest at fixed budget</td>
+          <td class="good">cancels in expectation</td>
+          <td class="good">same as random single</td>
+        </tr>
+        <tr>
+          <td><span class="term" data-term="btsigma">BT-&sigma;</span> (reliability-weighted)</td>
+          <td class="good">low</td>
+          <td class="good">low — handles mixed quality</td>
+          <td class="meh">K× + light fit cost</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>When a single judge is fine anyway</h2>
+    <p>
+      Panels aren't always worth it. Zheng et al. (2023) showed GPT-4 alone hits &gt;80% agreement
+      with human raters on MT-Bench when prompts swap positions and inject reference answers. In a
+      clinical safety eval (psychosis support), a single judge actually <em>beat</em> a jury against
+      clinician consensus — the rubric was tight, the bias surface was small, and panel disagreement
+      added more noise than it removed.
+    </p>
+    <p>
+      Rule of thumb: <b>panels matter when the task is subjective, stylistic bias dominates, or
+      cross-provider fairness is at stake</b>. Single judges work for tight rubrics, structured
+      outputs, and relative-delta dev iteration.
+    </p>
+
+    <h2>Where you'll meet it</h2>
+    <p>
+      Anywhere you're building an LLM eval pipeline that compares models. Leaderboards
+      (MT-Bench, Chatbot Arena, MindEval) are the canonical case. Internally, the same logic applies
+      to product eval suites, red-teaming benchmarks, and customer-facing comparison reports. The
+      moment you publish a number across providers, &gamma; becomes your dominant error term —
+      and only a panel can fix it.
+    </p>
+  </main>
+
+  <aside>
+    <div class="label">Glossary</div>
+    <dl id="gloss">
+      <dt data-g="scenario">Scenario (&alpha;)</dt>
+      <dd>The prompt or item being evaluated. Different scenarios have different inherent difficulty.</dd>
+      <dt data-g="generation">Generation (&beta;)</dt>
+      <dd>Stochastic noise from the model under evaluation rolling different completions.</dd>
+      <dt data-g="judgebias">Judge bias (&gamma;)</dt>
+      <dd>Systematic skew of one judge — position, verbosity, self-preference. Does not shrink with more samples from the same judge.</dd>
+      <dt data-g="residual">Residual (&epsilon;)</dt>
+      <dd>Unexplained noise per scoring call. Shrinks with everything.</dd>
+      <dt data-g="poll">PoLL</dt>
+      <dd>Panel of LLM Evaluators. A jury of smaller models from disjoint families, majority vote.</dd>
+      <dt data-g="cyclic">CyclicJudge</dt>
+      <dd>Round-robin assignment: each judge used equally often, never twice on the same cell.</dd>
+      <dt data-g="btsigma">BT-&sigma;</dt>
+      <dd>Bradley-Terry with a learned per-judge reliability parameter. Handles judges of mixed quality.</dd>
+    </dl>
+
+    <div class="label" style="margin-top:18px;">Papers</div>
+    <ul class="refs">
+      <li>Zhu et al. 2026 — CyclicJudge (arXiv:2603.01865)</li>
+      <li>Verga et al. 2024 — PoLL (arXiv:2404.18796)</li>
+      <li>Qian et al. 2026 — BT-&sigma; (arXiv:2602.16610)</li>
+      <li>Shi et al. 2025 — Position bias (arXiv:2406.07791)</li>
+      <li>Zheng et al. 2023 — MT-Bench (arXiv:2306.05685)</li>
+    </ul>
+  </aside>
+</div>
+
+<script>
+/* ---- deterministic PRNG so dots are stable per (K, N) ---- */
+function mulberry32(seed) {
+  return function() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function gauss(rng) {
+  const u = Math.max(1e-9, rng()), v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/* ---- model ---- */
+function computeVar(K, N) {
+  // illustrative — calibrated so γ dominates at K=1
+  const v_alpha   = 1.0 / N;
+  const v_beta    = 0.8 / N;
+  const v_gamma   = 2.0 / K;
+  const v_eps     = 0.6 / (K * N);
+  return { v_alpha, v_beta, v_gamma, v_eps, total: v_alpha + v_beta + v_gamma + v_eps };
+}
+
+/* ---- dartboard render ---- */
+const dart = document.getElementById('dart');
+function renderDart(K, N) {
+  const cx = 130, cy = 130;
+  const rings = [
+    `<circle cx="${cx}" cy="${cy}" r="100" fill="#F0EEE6" stroke="#D1CFC5"/>`,
+    `<circle cx="${cx}" cy="${cy}" r="70"  fill="none"     stroke="#D1CFC5"/>`,
+    `<circle cx="${cx}" cy="${cy}" r="40"  fill="none"     stroke="#D1CFC5"/>`,
+    `<circle cx="${cx}" cy="${cy}" r="6"   fill="#D97757"/>`,
+  ].join('');
+
+  // bias offset: shrinks 1/K. At K=1, big systematic offset.
+  // direction is fixed (so it's clearly "bias" not "noise")
+  const biasMag = 38 / K;
+  const biasAngle = 0.9; // radians, fixed
+  const bx = biasMag * Math.cos(biasAngle);
+  const by = biasMag * Math.sin(biasAngle);
+
+  // dot std: shrinks 1/sqrt(N) for sampling, 1/sqrt(K) for cross-judge spread
+  const std = 22 / Math.sqrt(N) / Math.sqrt(K);
+  const colors = ["#D97757", "#788C5D", "#6A8CAF", "#C2A83E", "#B04A3F"];
+  const rng = mulberry32(K * 1000 + N);
+  let dots = '';
+  for (let i = 0; i < 24; i++) {
+    const dx = gauss(rng) * std;
+    const dy = gauss(rng) * std;
+    const x = cx + bx + dx;
+    const y = cy + by + dy;
+    const judgeIdx = K > 1 ? Math.floor(rng() * K) : 0;
+    dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${colors[judgeIdx]}" opacity="0.85"/>`;
+  }
+  // crosshair on cluster mean
+  const meanX = cx + bx, meanY = cy + by;
+  dots += `<line x1="${meanX - 8}" y1="${meanY}" x2="${meanX + 8}" y2="${meanY}" stroke="#141413" stroke-width="1.2"/>`;
+  dots += `<line x1="${meanX}" y1="${meanY - 8}" x2="${meanX}" y2="${meanY + 8}" stroke="#141413" stroke-width="1.2"/>`;
+
+  dart.innerHTML = rings + dots;
+}
+
+/* ---- variance bar render ---- */
+const bar = document.getElementById('bar');
+function renderBar(K, N) {
+  const v = computeVar(K, N);
+  const ref = computeVar(1, 1).total; // for scale
+  const totalH = 200;
+  const scale = totalH / ref;
+  const barX = 110, barW = 80;
+  const baseY = 230;
+
+  const segs = [
+    { v: v.v_alpha,  color: "#788C5D", label: "α scenario" },
+    { v: v.v_beta,   color: "#6A8CAF", label: "β generation" },
+    { v: v.v_gamma,  color: "#D97757", label: "γ judge bias" },
+    { v: v.v_eps,    color: "#C2A83E", label: "ε residual" },
+  ];
+
+  let y = baseY;
+  let svg = `<line x1="20" y1="${baseY}" x2="260" y2="${baseY}" stroke="#D1CFC5"/>`;
+  svg += `<text x="20" y="22" font-family="ui-monospace" font-size="10" fill="#87867F">Var(score)</text>`;
+
+  // legend (left side, compact)
+  let legendY = 40;
+  segs.forEach(s => {
+    svg += `<rect x="20" y="${legendY}" width="10" height="10" fill="${s.color}"/>`;
+    svg += `<text x="36" y="${legendY + 9}" font-family="ui-monospace" font-size="10" fill="#3D3D3A">${s.label}</text>`;
+    legendY += 16;
+  });
+
+  segs.forEach(s => {
+    const h = s.v * scale;
+    y -= h;
+    svg += `<rect x="${barX}" y="${y}" width="${barW}" height="${h}" fill="${s.color}"><title>${s.label}: ${s.v.toFixed(2)}</title></rect>`;
+  });
+
+  // total label
+  const totalH_actual = v.total * scale;
+  svg += `<text x="${barX + barW + 8}" y="${baseY - totalH_actual + 4}" font-family="ui-monospace" font-size="10" fill="#141413">total ${v.total.toFixed(2)}</text>`;
+  svg += `<text x="${barX + barW/2}" y="${baseY + 14}" text-anchor="middle" font-family="ui-monospace" font-size="10" fill="#87867F">K=${K} · N=${N}</text>`;
+
+  bar.innerHTML = svg;
+}
+
+/* ---- readout ---- */
+function renderReadout(K, N) {
+  const v = computeVar(K, N);
+  const ref = computeVar(1, 1);
+  const reduction = (1 - v.total / ref.total) * 100;
+  const r = document.getElementById('readout');
+  r.innerHTML = `
+    <span class="pill bias">γ bias = ${v.v_gamma.toFixed(2)}</span>
+    <span class="pill var">α+β+ε = ${(v.v_alpha + v.v_beta + v.v_eps).toFixed(2)}</span>
+    <span class="pill total">total = ${v.total.toFixed(2)}</span>
+    <br>
+    <b>K=${K}</b> judges, <b>N=${N}</b> calls per item → variance is
+    <b>${reduction >= 0 ? reduction.toFixed(0) + '% lower' : 'unchanged'}</b>
+    than the baseline (K=1, N=1).
+  `;
+}
+
+/* ---- wiring ---- */
+const kSlider = document.getElementById('kSlider');
+const nSlider = document.getElementById('nSlider');
+const kVal = document.getElementById('kVal');
+const nVal = document.getElementById('nVal');
+
+function update() {
+  const K = +kSlider.value, N = +nSlider.value;
+  kVal.textContent = K;
+  nVal.textContent = N;
+  renderDart(K, N);
+  renderBar(K, N);
+  renderReadout(K, N);
+}
+kSlider.oninput = update;
+nSlider.oninput = update;
+
+const presets = {
+  single: { K: 1, N: 1 },
+  repeat: { K: 1, N: 8 },
+  panel:  { K: 4, N: 1 },
+  cyclic: { K: 4, N: 3 },
+};
+document.querySelectorAll('button[data-preset]').forEach(btn => {
+  btn.onclick = () => {
+    const p = presets[btn.dataset.preset];
+    kSlider.value = p.K;
+    nSlider.value = p.N;
+    update();
+  };
+});
+
+/* glossary highlight */
+document.querySelectorAll(".term").forEach(el => {
+  const g = el.dataset.term;
+  el.addEventListener("mouseenter", () => document.querySelector(`dt[data-g="${g}"]`)?.classList.add("hl"));
+  el.addEventListener("mouseleave", () => document.querySelector(`dt[data-g="${g}"]`)?.classList.remove("hl"));
+});
+
+update();
+</script>
+</body>
+</html>

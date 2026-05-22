@@ -1,0 +1,392 @@
+/* shell.css — shared styles for Orq Research Demos
+   Tokens lifted from the html-artifacts skill (explainer.html :root)
+   No external dependencies. */
+
+/* ── Design Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --ivory:    #FAF9F5;
+  --slate:    #141413;
+  --clay:     #D97757;
+  --oat:      #E3DACC;
+  --olive:    #788C5D;
+  --sky:      #6A8CAF;
+  --gold:     #C2A83E;
+  --rust:     #B04A3F;
+  --gray-150: #F0EEE6;
+  --gray-300: #D1CFC5;
+  --gray-500: #87867F;
+  --gray-700: #3D3D3A;
+  --serif: ui-serif, Georgia, "Times New Roman", serif;
+  --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ── Reset & Base ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--ivory);
+  color: var(--slate);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  padding: 56px 24px 120px;
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+}
+
+h1 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 42px;
+  color: var(--slate);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+/* Slightly smaller h1 on cover pages */
+.cover h1 {
+  font-size: 34px;
+}
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 26px;
+  color: var(--slate);
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+}
+
+.summary {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--gray-700);
+  max-width: 680px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+/* ── Gallery ────────────────────────────────────────────────────────────── */
+.hero {
+  margin-bottom: 56px;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  background: var(--ivory);
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  padding: 28px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-left-color 0.15s ease;
+  border-left: 3px solid transparent;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(20, 20, 19, 0.08);
+  border-left-color: var(--clay);
+}
+
+.card .eyebrow {
+  margin-bottom: 4px;
+}
+
+.card h2 {
+  font-size: 20px;
+  margin-bottom: 0;
+}
+
+.card .summary {
+  font-size: 16px;
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--clay);
+  background: var(--oat);
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+/* ── Cover Page ─────────────────────────────────────────────────────────── */
+.cover {
+  /* scoped variant for demo cover pages */
+}
+
+.back-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--gray-500);
+  text-decoration: none;
+  margin-bottom: 36px;
+  letter-spacing: 0.03em;
+}
+
+.back-link:hover {
+  color: var(--clay);
+}
+
+/* ── Artifact Grid (cover page) ─────────────────────────────────────────── */
+.artifact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 40px;
+}
+
+.artifact-card {
+  background: var(--gray-150);
+  border: 1px solid var(--gray-300);
+  border-radius: 10px;
+  padding: 20px 22px;
+  text-decoration: none;
+  color: var(--slate);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-left-color 0.15s ease;
+  border-left: 3px solid transparent;
+}
+
+.artifact-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(20, 20, 19, 0.08);
+  border-left-color: var(--clay);
+}
+
+.artifact-icon {
+  color: var(--clay);
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.artifact-label {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--slate);
+  flex: 1;
+}
+
+.artifact-open {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--gray-500);
+  letter-spacing: 0.03em;
+}
+
+/* ── Prose (doc.html rendered from markdown) ────────────────────────────── */
+.prose {
+  max-width: 740px;
+  margin: 0 auto;
+}
+
+.prose h1 {
+  font-size: 34px;
+  margin-bottom: 20px;
+}
+
+.prose h2 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 24px;
+  color: var(--slate);
+  letter-spacing: -0.01em;
+  margin: 48px 0 14px;
+  padding-top: 24px;
+  border-top: 1px solid var(--gray-300);
+}
+
+.prose h3 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 19px;
+  color: var(--slate);
+  margin: 32px 0 10px;
+}
+
+.prose h4 {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gray-500);
+  margin: 24px 0 8px;
+}
+
+.prose p {
+  margin-bottom: 14px;
+  color: var(--gray-700);
+  line-height: 1.7;
+}
+
+.prose a {
+  color: var(--clay);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: var(--rust);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 24px;
+  margin-bottom: 14px;
+}
+
+.prose li {
+  margin-bottom: 6px;
+  color: var(--gray-700);
+  line-height: 1.65;
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--clay);
+  padding: 10px 18px;
+  margin: 20px 0;
+  background: var(--gray-150);
+  border-radius: 0 6px 6px 0;
+}
+
+.prose blockquote p {
+  margin: 0;
+  font-style: italic;
+  color: var(--gray-700);
+}
+
+.prose code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--gray-150);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--slate);
+}
+
+.prose pre {
+  background: var(--oat);
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 18px;
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.prose table th {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gray-500);
+  border-bottom: 2px solid var(--gray-300);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.prose table td {
+  border-bottom: 1px solid var(--gray-300);
+  padding: 10px 12px;
+  color: var(--gray-700);
+  vertical-align: top;
+}
+
+.prose table tr:last-child td {
+  border-bottom: none;
+}
+
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--gray-300);
+  margin: 40px 0;
+}
+
+/* ── 404 ────────────────────────────────────────────────────────────────── */
+.not-found {
+  text-align: center;
+  padding-top: 80px;
+}
+
+.not-found h1 {
+  font-size: 96px;
+  color: var(--gray-300);
+  margin-bottom: 16px;
+}
+
+.not-found .summary {
+  margin: 0 auto 24px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .gallery,
+  .artifact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  h1 { font-size: 30px; }
+  .cover h1 { font-size: 26px; }
+}
+
+/* ── Print ──────────────────────────────────────────────────────────────── */
+@media print {
+  body { padding: 20px; }
+  .back-link { display: none; }
+  .card:hover { transform: none; box-shadow: none; }
+}

@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bias-Variance Tradeoff in
+LLM-as-a-Judge — Orq Research Demos</title>
+  <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../assets/shell.css">
+  <!--
+    MathJax CDN is the one external dependency we allow in this repo.
+    Rendering math (TeX/LaTeX) offline requires a heavy binary or full Node.js
+    toolchain (e.g. katex-cli). MathJax via CDN adds ~300KB on first load but
+    keeps the build step to a single pandoc call with no extra npm/pip deps.
+    See docs/conventions.md §2 for rationale.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+</head>
+<body>
+  <div class="page">
+    <a class="back-link" href="./">&#8592; Demo overview</a>
+    <article class="prose">
+      <h1
+      id="bias-variance-tradeoff-in-llm-as-a-judge-single-judge-repetition-and-panels">Bias-Variance
+      Tradeoff in LLM-as-a-Judge: Single Judge, Repetition, and
+      Panels</h1>
+      <p><strong>Author:</strong> Bauke Brenninkmeijer
+      <strong>Date:</strong> 2026-05-22 <strong>Status:</strong>
+      Draft</p>
+      <h2 id="tldr">TL;DR</h2>
+      <p>The intuition holds, with one important refinement from the
+      recent literature:</p>
+      <table>
+      <colgroup>
+      <col style="width: 33%" />
+      <col style="width: 33%" />
+      <col style="width: 33%" />
+      </colgroup>
+      <thead>
+      <tr>
+      <th>Strategy</th>
+      <th>Variance</th>
+      <th>Bias</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td><strong>Single judge, 1 call</strong></td>
+      <td>High (decoding + sampling noise)</td>
+      <td>High (judge-specific systematic biases)</td>
+      </tr>
+      <tr>
+      <td><strong>Single judge, repeated / more prompts</strong></td>
+      <td>↓ Reduced</td>
+      <td><strong>Unchanged</strong> — biases do not average out</td>
+      </tr>
+      <tr>
+      <td><strong>Panel of diverse judges (PoLL, jury)</strong></td>
+      <td>↓ Reduced</td>
+      <td>↓ Reduced — biases partially cancel across families</td>
+      </tr>
+      <tr>
+      <td><strong>Balanced round-robin panel (CyclicJudge)</strong></td>
+      <td>↓ Lowest at fixed budget</td>
+      <td>↓ Eliminated in expectation</td>
+      </tr>
+      </tbody>
+      </table>
+      <p>Repetition attacks <em>sampling noise</em>. Only changing the
+      <strong>set</strong> of judges attacks <em>judge bias</em>. This
+      is the central finding of Zhu et al. (2026) — and it cleanly
+      formalizes the bias-variance framing.</p>
+      <hr />
+      <h2 id="where-the-bias-comes-from">1. Where the bias comes
+      from</h2>
+      <p>A single LLM judge carries systematic, model-specific biases
+      that are well documented:</p>
+      <ul>
+      <li><strong>Position bias</strong> — Order of candidates flips
+      outcomes. Shi et al. (2025, arXiv:2406.07791) ran ~150k evaluation
+      instances across 15 judges and showed position bias is <strong>not
+      random</strong>: it varies by judge and task, is only weakly tied
+      to component length, and is strongly modulated by the quality gap
+      between candidates. So mitigations (swapping positions, averaging)
+      work but are judge-dependent.</li>
+      <li><strong>Verbosity bias</strong> — Judges prefer longer answers
+      regardless of quality.</li>
+      <li><strong>Self-preference / intra-model bias</strong> — Judges
+      favor outputs from their own model family (Zheng et al. 2023;
+      Verga et al. 2024).</li>
+      <li><strong>Reasoning ceiling</strong> — Judges are weak on
+      math/logic and inherit their own model’s blind spots (Zheng et
+      al. 2023, arXiv:2306.05685).</li>
+      </ul>
+      <p>These are <em>properties of the judge</em>, not properties of
+      the sample. They don’t shrink with more samples from the same
+      judge — which is exactly what makes them “bias” in the statistical
+      sense.</p>
+      <h2
+      id="why-repetition-alone-is-insufficient-the-formal-argument">2.
+      Why repetition alone is insufficient — the formal argument</h2>
+      <p>Zhu et al. (2026, <em>CyclicJudge</em>, arXiv:2603.01865)
+      decompose each evaluation score as</p>
+      <p><span class="math display">\[X_{ij\ell} = \mu_\theta + \alpha_i
+      + \beta_{ij} + \gamma_\ell + \varepsilon_{ij\ell}\]</span></p>
+      <p>with terms for scenario difficulty (<span
+      class="math inline">\(\alpha\)</span>), generation noise (<span
+      class="math inline">\(\beta\)</span>), <strong>judge bias</strong>
+      (<span class="math inline">\(\gamma\)</span>), and residual noise
+      (<span class="math inline">\(\varepsilon\)</span>).</p>
+      <p>The variance of the benchmark mean then decomposes into four
+      terms. Critically:</p>
+      <ul>
+      <li>The <span class="math inline">\(\alpha\)</span>, <span
+      class="math inline">\(\beta\)</span>, <span
+      class="math inline">\(\varepsilon\)</span> terms
+      <strong>shrink</strong> with more scenarios, more generations,
+      more decoding rolls.</li>
+      <li>The <span class="math inline">\(\gamma\)</span> term
+      <strong>does not shrink</strong> unless you change <span
+      class="math inline">\(K\)</span>, the number of distinct
+      judges.</li>
+      </ul>
+      <p>Empirically they show <span
+      class="math inline">\(V_\gamma\)</span> (the judge-bias variance
+      contribution to the benchmark mean) is <strong>the dominant
+      term</strong> in typical single-judge, single-generation settings
+      on MT-Bench and MindEval.</p>
+      <p>This is the cleanest existing evidence for the intuition:
+      <strong>repetition of one judge ≈ pure variance reduction, no bias
+      correction.</strong></p>
+      <h2 id="why-panels-reduce-bias-and-how-aggregation-matters">3. Why
+      panels reduce bias — and how aggregation matters</h2>
+      <p>Two complementary lines of work:</p>
+      <h3
+      id="a.-poll-panel-of-llm-evaluators-verga-et-al.-arxiv2404.18796">3a.
+      PoLL — Panel of LLM Evaluators (Verga et al.,
+      arXiv:2404.18796)</h3>
+      <p>A jury of smaller models from <strong>disjoint
+      families</strong> (e.g. Claude-family + GPT-family + open-weight)
+      correlates with human preferences <strong>better</strong> than a
+      single large judge across 6 datasets and 3 settings, while being
+      ~<strong>7× cheaper</strong>. The mechanism: biases from different
+      families are not perfectly correlated, so simple averaging cancels
+      a substantial fraction.</p>
+      <blockquote>
+      <p>Caveat: PoLL benefits depend on judge
+      <strong>diversity</strong>. Three Claude variants ≠ a real panel —
+      biases would be too correlated to cancel.</p>
+      </blockquote>
+      <h3
+      id="b.-bt-σ-judge-reliability-aware-aggregation-qian-et-al.-arxiv2602.16610">3b.
+      BT-σ — Judge-reliability-aware aggregation (Qian et al.,
+      arXiv:2602.16610)</h3>
+      <p>Naive averaging treats all judges as equally trustworthy. BT-σ
+      extends Bradley-Terry with a per-judge discriminator parameter,
+      learned jointly from pairwise comparisons (no human labels
+      needed). It outperforms naive panel averaging when judges differ
+      in reliability. Useful when you suspect one of your judges is a
+      weak link.</p>
+      <h3
+      id="c.-cyclicjudge-optimal-panel-design-under-fixed-budget-zhu-et-al.">3c.
+      CyclicJudge — Optimal panel design under fixed budget (Zhu et
+      al.)</h3>
+      <p>The core practical contribution: at any fixed judge-call
+      budget, a <strong>balanced round-robin</strong> assignment of
+      judges to (scenario, generation) cells — every judge used equally
+      often, never twice on the same cell — provably:</p>
+      <ol type="1">
+      <li>Cancels the <span class="math inline">\(\gamma\)</span> (judge
+      bias) term in expectation,</li>
+      <li>Achieves <strong>lower total variance</strong> than both
+      random-single-judge and all-judges-on-everything,</li>
+      <li>Cuts benchmark score variance by <strong>27–40%</strong> vs
+      random single-judge at realistic budgets.</li>
+      </ol>
+      <p>So under a budget constraint, the optimal design is
+      <em>not</em> “more reps of one judge” or <em>“all judges on every
+      item”</em> — it’s <em>balanced rotation</em>.</p>
+      <h2 id="when-a-single-judge-is-fine">4. When a single judge is
+      fine</h2>
+      <p>Not every setting needs a panel.</p>
+      <ul>
+      <li><strong>Zheng et al. (2023)</strong> — GPT-4 alone hits
+      <strong>&gt;80% agreement</strong> with humans on MT-Bench,
+      comparable to human-human agreement, given prompt-engineered
+      mitigations (position swap, CoT, reference answers).</li>
+      <li><strong>Clinical / rubric-constrained tasks</strong> — In a
+      psychosis-support safety eval (OpenReview 78ootwhyDQ), a single
+      judge <strong>beat a jury</strong> against clinician consensus
+      (Cohen’s κ higher for human×judge than human×jury). When the
+      rubric is tight and the bias surface is small, panel noise can
+      hurt more than it helps.</li>
+      </ul>
+      <p>Rule of thumb: panels matter when <strong>the task is
+      subjective</strong>, <strong>stylistic bias drives
+      outcomes</strong>, or <strong>cross-provider fairness</strong> is
+      at stake (leaderboards). Single judges are fine when <strong>the
+      rubric is objective</strong>, <strong>answers are
+      short/structured</strong>, and you only need <strong>relative
+      deltas</strong> with one judge held fixed.</p>
+      <h2 id="recommendations-for-our-eval-framework">5. Recommendations
+      for our eval framework</h2>
+      <p>Mapping back to what we run at orq:</p>
+      <ol type="1">
+      <li><strong>For internal iterative dev</strong> (prompt tuning,
+      A/B on a single agent): single strong judge + position-swap +
+      deterministic decoding is fine. Cheaper, faster, sufficient for
+      <em>relative</em> signal.</li>
+      <li><strong>For leaderboards / cross-provider comparison /
+      customer-facing benchmarks</strong>: use a panel of ≥3 judges from
+      <strong>different families</strong> with <strong>CyclicJudge-style
+      round-robin</strong> assignment. Budget the same number of calls,
+      get lower variance <em>and</em> unbiased ranking.</li>
+      <li><strong>For pairwise preference tasks</strong>: PoLL with
+      majority vote is a strong baseline; upgrade to BT-σ when you
+      suspect judge-quality heterogeneity (e.g. mixing a small
+      open-weight model with a frontier model).</li>
+      <li><strong>Always</strong> report which judge(s) produced the
+      score. The judge identity is now understood to be the dominant
+      source of disagreement across benchmark replications.</li>
+      </ol>
+      <h2 id="open-questions">6. Open questions</h2>
+      <ul>
+      <li><strong>Correlation structure of biases across
+      families</strong> — How “disjoint” do panel members really need to
+      be? PoLL assumes near-independence; CyclicJudge’s
+      bias-cancellation guarantee weakens as judge biases become
+      correlated. Empirical mapping of cross-family bias correlation is
+      missing.</li>
+      <li><strong>Debate vs vote</strong> — NeurIPS 2025 work on
+      multi-agent debate with adaptive stability detection beats
+      majority voting at similar cost. Unclear when debate is worth the
+      latency.</li>
+      <li><strong>Judge drift</strong> — If frontier-model judges shift
+      over time (new versions), longitudinal benchmark scores get a
+      moving <span class="math inline">\(\gamma\)</span>. Pinning judge
+      versions or running a rolling calibration set is probably
+      necessary.</li>
+      </ul>
+      <hr />
+      <h2 id="verification-of-intuition">Verification of intuition</h2>
+      <table>
+      <colgroup>
+      <col style="width: 33%" />
+      <col style="width: 33%" />
+      <col style="width: 33%" />
+      </colgroup>
+      <thead>
+      <tr>
+      <th>Claim</th>
+      <th>Supported?</th>
+      <th>Strongest evidence</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+      <td>Repetition reduces variance</td>
+      <td>✅ Yes</td>
+      <td>Zhu et al. 2026 — α, β, ε terms shrink with more samples</td>
+      </tr>
+      <tr>
+      <td>Repetition reduces bias</td>
+      <td>❌ No</td>
+      <td>Zhu et al. 2026 — γ term independent of N</td>
+      </tr>
+      <tr>
+      <td>Panels reduce bias</td>
+      <td>✅ Yes, conditional on judge diversity</td>
+      <td>Verga et al. 2024 (PoLL), Zhu et al. 2026 (CyclicJudge)</td>
+      </tr>
+      <tr>
+      <td>Panels also reduce variance under fixed budget</td>
+      <td>✅ Yes</td>
+      <td>Zhu et al. 2026 — 27–40% variance reduction vs random single
+      judge</td>
+      </tr>
+      </tbody>
+      </table>
+      <p>Intuition holds. The non-obvious refinement: <strong>balanced
+      round-robin</strong> is strictly better than either “average all
+      judges on all items” or “random single judge per item” — and
+      that’s where the budget should go.</p>
+      <h2 id="references">References</h2>
+      <ol type="1">
+      <li>Zhu et al. (2026). <em>Mitigating Judge Bias Efficiently in
+      LLM-based Evaluation</em> (CyclicJudge). arXiv:2603.01865.</li>
+      <li>Verga et al. (2024). <em>Replacing Judges with Juries:
+      Evaluating LLM Generations with a Panel of Diverse Models</em>
+      (PoLL). arXiv:2404.18796.</li>
+      <li>Qian et al. (2026). <em>Who can we trust? LLM-as-a-jury for
+      Comparative Assessment</em> (BT-σ). arXiv:2602.16610.</li>
+      <li>Shi et al. (2025). <em>Judging the Judges: A Systematic Study
+      of Position Bias in LLM-as-a-Judge</em>. arXiv:2406.07791.</li>
+      <li>Zheng et al. (2023). <em>Judging LLM-as-a-Judge with MT-Bench
+      and Chatbot Arena</em>. arXiv:2306.05685.</li>
+      <li><em>Using LLM-as-a-Judge/Jury to Advance Scalable, Clinically
+      Grounded Evaluation</em>. OpenReview 78ootwhyDQ.</li>
+      <li><em>Multi-Agent Debate for LLM Judges with Adaptive Stability
+      Detection</em>. NeurIPS 2025.</li>
+      </ol>
+    </article>
+  </div>
+</body>
+</html>
