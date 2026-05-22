@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "slug": "jury-llm-evaluators",
   "title": "Three judges beat one",
-  "authors": ["Bauke Brenninkmeijer"],
+  "authors": ["Arian Pasquali"],
   "published": "2026-05-21",
   "updated": "2026-05-21",
   "summary": "Notes on building an LLM jury — why panels beat single judges, and how to pick the right ones.",
