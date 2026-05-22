@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Jury · interactive panel-of-judges prototype</title>
+<style>
+  :root {
+    --ivory:#FAF9F5; --slate:#141413; --clay:#D97757; --oat:#E3DACC;
+    --olive:#788C5D; --sky:#6A8CAF; --plum:#8B6BA8;
+    --gray-150:#F0EEE6; --gray-300:#D1CFC5;
+    --gray-500:#87867F; --gray-600:#5C5B55; --gray-700:#3D3D3A; --white:#FFFFFF;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--ivory); color: var(--gray-700); font-family: var(--sans); font-size: 14.5px; line-height: 1.55; -webkit-font-smoothing: antialiased; padding: 40px 24px 80px; }
+  .page { max-width: 1280px; margin: 0 auto; }
+
+  header { margin-bottom: 24px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-500); margin-bottom: 8px; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 32px; color: var(--slate); letter-spacing: -0.01em; margin-bottom: 8px; }
+  .sub { color: var(--gray-600); font-size: 15px; max-width: 760px; margin-bottom: 14px; }
+
+  .links { display: flex; gap: 8px; font-family: var(--mono); font-size: 11.5px; }
+  .links a { color: var(--gray-500); text-decoration: none; padding: 4px 10px; background: var(--white); border: 1px solid var(--gray-300); border-radius: 6px; }
+  .links a:hover { color: var(--clay); border-color: var(--clay); }
+
+  /* mode pills */
+  .modes { display: inline-flex; border: 1px solid var(--gray-300); border-radius: 8px; overflow: hidden; margin: 14px 0; }
+  .modes button { font-family: var(--mono); font-size: 12px; padding: 6px 14px; background: var(--white); border: none; cursor: pointer; color: var(--gray-500); border-right: 1px solid var(--gray-300); }
+  .modes button:last-child { border-right: none; }
+  .modes button.active { background: var(--slate); color: var(--ivory); }
+  .modes button:hover:not(.active) { color: var(--clay); }
+
+  /* layout */
+  .stage {
+    display: grid; grid-template-columns: 360px 1fr; gap: 18px;
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 12px; overflow: hidden;
+  }
+  @media (max-width: 1080px) { .stage { grid-template-columns: 1fr; } }
+
+  .left {
+    padding: 18px 20px;
+    background: var(--ivory);
+    border-right: 1px solid var(--gray-300);
+  }
+  .left h3 { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 10px; font-weight: 500; }
+  .left .question {
+    font-family: var(--mono); font-size: 12.5px; color: var(--slate);
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 6px;
+    padding: 10px 12px; margin-bottom: 16px;
+  }
+  .left .answer {
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 12px;
+  }
+  .left .answer .label {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+    color: var(--gray-500); margin-bottom: 6px; letter-spacing: 0.06em;
+    display: flex; justify-content: space-between;
+  }
+  .left .answer.A { border-left: 3px solid var(--clay); }
+  .left .answer.B { border-left: 3px solid var(--sky); }
+  .left .answer .body { font-size: 13px; color: var(--gray-700); }
+  .left .nav { display: flex; gap: 6px; margin-top: 16px; }
+  .left .nav button {
+    font-family: var(--mono); font-size: 11px;
+    padding: 5px 10px; background: var(--white);
+    border: 1px solid var(--gray-300); border-radius: 5px;
+    color: var(--slate); cursor: pointer;
+    flex: 1;
+  }
+  .left .nav button:hover { border-color: var(--clay); color: var(--clay); }
+  .left .nav button.clay { background: var(--clay); color: var(--white); border-color: var(--clay); }
+  .left .meta { font-family: var(--mono); font-size: 10.5px; color: var(--gray-500); margin-top: 10px; }
+
+  /* judges panel */
+  .panel { padding: 18px 20px; }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+  }
+  .panel-head h2 { font-family: var(--serif); font-weight: 500; font-size: 20px; color: var(--slate); }
+  .panel-head .actions { display: flex; gap: 8px; }
+  .panel-head .btn {
+    font-family: var(--mono); font-size: 11.5px; padding: 6px 12px;
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 5px;
+    color: var(--slate); cursor: pointer;
+  }
+  .panel-head .btn.clay { background: var(--clay); color: var(--white); border-color: var(--clay); }
+  .panel-head .btn:hover:not(.clay) { border-color: var(--clay); color: var(--clay); }
+
+  .judges-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 880px) { .judges-grid { grid-template-columns: 1fr; } }
+
+  .judge {
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 10px;
+    overflow: hidden;
+  }
+  .judge .jh {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-300);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .judge .badge {
+    width: 22px; height: 22px; border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    color: var(--white);
+  }
+  .judge .badge.A { background: #C5644B; }
+  .judge .badge.B { background: var(--olive); }
+  .judge .badge.C { background: var(--sky); }
+  .judge .jn { font-family: var(--mono); font-size: 11.5px; color: var(--slate); font-weight: 600; }
+  .judge .jm { font-family: var(--mono); font-size: 10.5px; color: var(--gray-500); margin-left: auto; }
+  .judge .jbody { padding: 14px; }
+  .judge .vote {
+    display: inline-block; padding: 4px 14px; border-radius: 6px;
+    font-family: var(--mono); font-size: 14px; font-weight: 700;
+    background: var(--gray-150); color: var(--gray-500);
+    margin-bottom: 8px;
+  }
+  .judge .vote.A { background: #F3D9CC; color: #8A3B1E; }
+  .judge .vote.B { background: #D9E5EA; color: #2F4F62; }
+  .judge .vote.TIE { background: var(--oat); color: var(--slate); }
+  .judge .vote.true { background: #F3D9CC; color: #8A3B1E; }
+  .judge .vote.false { background: #DDE5C9; color: #3F5429; }
+  .judge .reason { font-size: 12.5px; color: var(--gray-600); line-height: 1.5; min-height: 56px; }
+  .judge .latency { font-family: var(--mono); font-size: 10.5px; color: var(--gray-500); margin-top: 8px; }
+  .judge.pending .jbody { opacity: 0.5; }
+  .judge.running .jbody { background: linear-gradient(90deg, var(--white) 0%, var(--ivory) 50%, var(--white) 100%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* aggregation card */
+  .agg {
+    background: var(--slate); color: var(--ivory);
+    border-radius: 10px; padding: 18px 22px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; align-items: center;
+  }
+  .agg .meta-label {
+    font-family: var(--mono); font-size: 10.5px; color: var(--gray-300);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+  }
+  .agg .verdict-big {
+    font-family: var(--serif); font-size: 28px; font-weight: 500;
+    color: var(--ivory);
+  }
+  .agg .verdict-big.A { color: #F3A78F; }
+  .agg .verdict-big.B { color: #A8C7E0; }
+  .agg .verdict-big.TIE { color: #E3DACC; }
+  .agg .verdict-big.true { color: #F3A78F; }
+  .agg .verdict-big.false { color: #A8C081; }
+  .agg .verdict-big.pending { color: var(--gray-500); }
+  .agg .reason-detail { font-size: 12.5px; color: var(--gray-300); line-height: 1.5; }
+  .agg .agree {
+    font-family: var(--mono); font-size: 13px;
+  }
+  .agg .agree b { color: var(--ivory); font-size: 16px; }
+  .agg .disagree { color: #F3A78F; }
+  .agg .unanimous { color: #A8C081; }
+
+  /* human override */
+  .human-row {
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 10px;
+    padding: 14px 18px; margin-top: 14px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .human-row .label {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    color: var(--gray-500); letter-spacing: 0.06em;
+  }
+  .human-row .picks { display: flex; gap: 6px; }
+  .human-row .picks button {
+    font-family: var(--mono); font-size: 12px;
+    padding: 6px 16px; border-radius: 5px;
+    background: var(--white); border: 1px solid var(--gray-300);
+    color: var(--slate); cursor: pointer;
+    min-width: 70px;
+  }
+  .human-row .picks button:hover { border-color: var(--clay); color: var(--clay); }
+  .human-row .picks button.on.A { background: #F3D9CC; border-color: #C5644B; color: #8A3B1E; }
+  .human-row .picks button.on.B { background: #D9E5EA; border-color: var(--sky); color: #2F4F62; }
+  .human-row .picks button.on.TIE { background: var(--oat); border-color: #C8B998; color: var(--slate); }
+  .human-row .agree-pill {
+    margin-left: auto; font-family: var(--mono); font-size: 12px;
+    padding: 4px 10px; border-radius: 5px;
+    background: var(--gray-150); color: var(--gray-500);
+  }
+  .human-row .agree-pill.match { background: #DDE5C9; color: #3F5429; }
+  .human-row .agree-pill.miss { background: #F3D9CC; color: #8A3B1E; }
+
+  /* notes */
+  .notes {
+    margin-top: 28px;
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .notes h3 { font-family: var(--serif); font-weight: 500; font-size: 18px; color: var(--slate); margin-bottom: 10px; }
+  .notes .step { display: grid; grid-template-columns: 24px 1fr; gap: 12px; margin-bottom: 10px; align-items: start; }
+  .notes .step .n {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--clay); color: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+  }
+  .notes .step .t { font-size: 13.5px; color: var(--gray-700); }
+  .notes .step .t b { color: var(--slate); }
+
+  /* questions */
+  .questions {
+    margin-top: 18px;
+    background: var(--white); border-left: 3px solid var(--olive);
+    padding: 14px 20px; border-radius: 0 8px 8px 0;
+    font-size: 13.5px;
+  }
+  .questions h4 { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 8px; }
+  .questions ul { padding-left: 18px; }
+  .questions li { margin-bottom: 4px; color: var(--gray-700); }
+  .questions li b { color: var(--slate); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="eyebrow">prototype · interactive · llm jury</div>
+  <h1>Three judges, one verdict</h1>
+  <p class="sub">A pairwise A/B/TIE comparison run by three small judges from three providers, aggregated into a panel verdict. Click <b>Run panel</b> to watch it score, then annotate as the human and see whether the panel matches you.</p>
+  <div class="links">
+    <a href="jury-blog.html">↗ blog post</a>
+    <a href="jury-deck.html">↗ slide deck</a>
+    <a href="../workflow-design.html">↗ workflow design</a>
+  </div>
+</header>
+
+<div class="modes">
+  <button class="active" data-mode="pairwise">pairwise · A vs B</button>
+  <button data-mode="pointwise">pointwise · pass/fail</button>
+</div>
+
+<div class="stage">
+  <div class="left">
+    <h3>Sample</h3>
+    <div class="question" id="qBox">How do I optimize database queries for a large dataset?</div>
+    <div class="answer A">
+      <div class="label"><span>Answer A</span><span>verbose</span></div>
+      <div class="body" id="aBox">Use indexing on frequently queried columns, consider denormalization, and run EXPLAIN ANALYZE to understand query plans. Query complexity grows with data size, so these optimizations are critical for maintaining performance at scale.</div>
+    </div>
+    <div class="answer B">
+      <div class="label"><span>Answer B</span><span>concise</span></div>
+      <div class="body" id="bBox">Add indexes to WHERE-clause columns. Use LIMIT. Cache with Redis for repeated reads.</div>
+    </div>
+    <div class="nav">
+      <button id="prevBtn">← prev</button>
+      <button id="nextBtn">next →</button>
+    </div>
+    <div class="meta">sample <span id="sampleIdx">1</span>/<span id="sampleTotal">4</span> · pairwise mode</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Panel of judges</h2>
+      <div class="actions">
+        <button class="btn" id="positionSwap">⇄ Position swap</button>
+        <button class="btn clay" id="runBtn">▶ Run panel</button>
+      </div>
+    </div>
+
+    <div class="judges-grid" id="judgesGrid"></div>
+
+    <div class="agg" id="aggCard">
+      <div>
+        <div class="meta-label">panel verdict</div>
+        <div class="verdict-big pending" id="aggVerdict">—</div>
+      </div>
+      <div>
+        <div class="meta-label">agreement</div>
+        <div class="agree" id="aggAgree">awaiting run</div>
+      </div>
+      <div>
+        <div class="meta-label">interpretation</div>
+        <div class="reason-detail" id="aggReason">Click Run panel · three judges score in parallel.</div>
+      </div>
+    </div>
+
+    <div class="human-row" id="humanRow">
+      <span class="label">human override</span>
+      <span class="picks" id="humanPicks">
+        <button data-h="A">A</button>
+        <button data-h="B">B</button>
+        <button data-h="TIE">TIE</button>
+      </span>
+      <span class="agree-pill" id="humanAgreePill">no label yet</span>
+    </div>
+  </div>
+</div>
+
+<section class="notes">
+  <h3>What you're feeling</h3>
+  <div class="step"><div class="n">1</div><div class="t"><b>Three judges, three providers.</b> Different families dilute systematic bias. Same prompt to each, in parallel — not sequential.</div></div>
+  <div class="step"><div class="n">2</div><div class="t"><b>TIE is a real label.</b> When judges split, the answer is "panel ambiguous, escalate to human." Hiding it as null loses signal.</div></div>
+  <div class="step"><div class="n">3</div><div class="t"><b>Disagreement = data.</b> Unanimous on easy items, split on hard ones. The split rate is your diagnostic for prompt clarity.</div></div>
+  <div class="step"><div class="n">4</div><div class="t"><b>Position swap for pairwise.</b> Re-run hard A vs B as B vs A. Position bias is a pairwise problem — symmetrising the prompt is the cheap fix.</div></div>
+  <div class="step"><div class="n">5</div><div class="t"><b>Human override is the ground truth.</b> Your pick vs panel verdict produces the alignment signal you care about long-term.</div></div>
+</section>
+
+<section class="questions">
+  <h4>Open questions</h4>
+  <ul>
+    <li><b>How many disagreements before re-aligning a judge?</b> 5%? 10%? Threshold depends on stakes.</li>
+    <li><b>Weight judges by their historic agreement with humans?</b> Or treat all votes equal (1-judge-1-vote)?</li>
+    <li><b>When does a 4th judge help?</b> Krippendorff plateaus at 3–5. Adding more raises cost without gain.</li>
+    <li><b>Self-judge exclusion enforced where?</b> Config layer or runtime guard?</li>
+  </ul>
+</section>
+
+<script>
+const PAIRWISE_SAMPLES = [
+  {
+    q: "How do I optimize database queries for a large dataset?",
+    a: "Use indexing on frequently queried columns, consider denormalization, and run EXPLAIN ANALYZE to understand query plans. Query complexity grows with data size, so these optimizations are critical for maintaining performance at scale.",
+    aLabel: "verbose",
+    b: "Add indexes to WHERE-clause columns. Use LIMIT. Cache with Redis for repeated reads.",
+    bLabel: "concise",
+    judgeVerdicts: { A: "A", B: "B", C: "TIE" },
+    judgeReasons: {
+      A: "Answer A is more thorough and explains *why* (EXPLAIN ANALYZE). Better mentorship value.",
+      B: "Answer B is concrete and actionable. A is hand-wavy on actual steps. Concise wins.",
+      C: "Both correct. A teaches reasoning, B is operational. Genuine tie — neither dominates.",
+    },
+    latency: { A: 420, B: 380, C: 510 },
+  },
+  {
+    q: "Is the Earth flat?",
+    a: "No. Earth is an oblate spheroid; this is established by satellite imagery, circumnavigation, gravitational measurements, and shadow geometry observed since antiquity.",
+    aLabel: "factual",
+    b: "Some people debate this on social media, so there are arguments on both sides depending on your perspective.",
+    bLabel: "evasive",
+    judgeVerdicts: { A: "A", B: "A", C: "A" },
+    judgeReasons: {
+      A: "Answer A is factually accurate. Answer B false-balances a settled scientific question.",
+      B: "A wins clearly. B is unhelpful and validates misinformation through faux neutrality.",
+      C: "A is correct and well-justified. B fails the rubric on factuality.",
+    },
+    latency: { A: 290, B: 310, C: 350 },
+  },
+  {
+    q: "Write a haiku about rain.",
+    a: "Soft drops on the leaves / Whispers through the city street / Earth drinks once again",
+    aLabel: "traditional",
+    b: "Rain falls. Streets glisten. / A child runs, laughing, splashing. / Puddles hold the sky.",
+    bLabel: "vivid",
+    judgeVerdicts: { A: "B", B: "A", C: "TIE" },
+    judgeReasons: {
+      A: "B is more vivid and uses imagery effectively. A is competent but generic.",
+      B: "A follows the 5-7-5 structure more faithfully. B's third line is borderline syllabically.",
+      C: "Subjective. Both meet criteria. Genuine TIE — judges should not pretend otherwise.",
+    },
+    latency: { A: 380, B: 420, C: 450 },
+  },
+  {
+    q: "Explain photosynthesis in one sentence.",
+    a: "Plants convert sunlight into chemical energy by combining CO₂ and water to produce glucose and oxygen, with chlorophyll as the catalyst.",
+    aLabel: "accurate",
+    b: "Plants eat sunlight and breathe out air.",
+    bLabel: "oversimplified",
+    judgeVerdicts: { A: "A", B: "A", C: "A" },
+    judgeReasons: {
+      A: "A is accurate, complete, mentions chlorophyll. B is anthropomorphic and incorrect.",
+      B: "A wins on accuracy. B is misleading even as simplification.",
+      C: "A is the canonical sentence-level explanation. Clear preference.",
+    },
+    latency: { A: 250, B: 280, C: 290 },
+  },
+];
+
+// Pointwise · rubric is hallucination detection. Verdict = true (hallucinated) | false (grounded).
+const POINTWISE_SAMPLES = [
+  {
+    q: "Capital of Australia?",
+    a: "Sydney is the capital of Australia.",
+    aLabel: "hallucinated",
+    judgeVerdicts: { A: "true", B: "true", C: "true" },
+    judgeReasons: {
+      A: "Sydney is the largest city. Canberra is the capital. Output contradicts ground truth — hallucinated.",
+      B: "Wrong city named as capital. Common confusion but factually incorrect.",
+      C: "Hallucinated · Canberra is the capital, not Sydney.",
+    },
+    latency: { A: 240, B: 270, C: 290 },
+  },
+  {
+    q: "What's the speed of light in vacuum?",
+    a: "Approximately 299,792 km/s — about 300,000 km/s for back-of-envelope work.",
+    aLabel: "grounded",
+    judgeVerdicts: { A: "false", B: "false", C: "false" },
+    judgeReasons: {
+      A: "Numerically correct. Output matches accepted physical constant.",
+      B: "Accurate to known precision. Approximation note is reasonable.",
+      C: "Grounded · 299,792 km/s is correct, no hallucination.",
+    },
+    latency: { A: 220, B: 240, C: 280 },
+  },
+  {
+    q: "Who painted the Sistine Chapel ceiling?",
+    a: "Leonardo da Vinci painted the Sistine Chapel ceiling between 1508 and 1512.",
+    aLabel: "hallucinated · split",
+    judgeVerdicts: { A: "true", B: "true", C: "false" },
+    judgeReasons: {
+      A: "Wrong artist. Michelangelo painted the Sistine Chapel, not Leonardo. Hallucinated.",
+      B: "Hallucinated · Michelangelo, not Leonardo. Dates 1508-1512 are correct for Michelangelo's work.",
+      C: "Output mixes two Renaissance figures. Dates align with Michelangelo but name is wrong. Not strictly hallucinated since dates check out — borderline.",
+    },
+    latency: { A: 310, B: 290, C: 380 },
+  },
+  {
+    q: "Largest desert by area?",
+    a: "The Sahara is the largest desert on Earth.",
+    aLabel: "edge case · split",
+    judgeVerdicts: { A: "true", B: "false", C: "true" },
+    judgeReasons: {
+      A: "By total area Antarctica is the largest desert (cold desert). Sahara is largest hot desert. Output is misleading — hallucinated.",
+      B: "Common usage refers to Sahara. Technically Antarctica wins by area but this is ambiguous — not clearly hallucinated.",
+      C: "Strict factuality: Antarctica > Sahara by area. Output asserts a falsehood. Hallucinated.",
+    },
+    latency: { A: 350, B: 290, C: 410 },
+  },
+];
+
+const JUDGES = [
+  { id: "A", name: "claude-haiku",    provider: "anthropic" },
+  { id: "B", name: "gemini-flash",    provider: "google"    },
+  { id: "C", name: "gpt-4o-mini",     provider: "openai"    },
+];
+
+const state = {
+  idx: 0,
+  mode: "pairwise",
+  ran: false,
+  positionSwapped: false,
+  judgeStatus: { A: "pending", B: "pending", C: "pending" },
+  judgeResults: { A: null, B: null, C: null },
+  panelVerdict: null,
+  humanPick: null,
+};
+
+function samples() { return state.mode === "pairwise" ? PAIRWISE_SAMPLES : POINTWISE_SAMPLES; }
+function current() { return samples()[state.idx]; }
+function voteSpace() { return state.mode === "pairwise" ? ["A","B","TIE"] : ["true","false"]; }
+
+function $(s){ return document.querySelector(s); }
+function $$(s){ return Array.from(document.querySelectorAll(s)); }
+
+function renderSample() {
+  const s = current();
+  $("#qBox").textContent = s.q;
+  $("#sampleIdx").textContent = state.idx + 1;
+  $("#sampleTotal").textContent = samples().length;
+  if (state.mode === "pairwise") {
+    if (state.positionSwapped) {
+      $("#aBox").textContent = s.b;
+      $("#bBox").textContent = s.a;
+      $$(".answer .label")[0].lastElementChild.textContent = s.bLabel;
+      $$(".answer .label")[1].lastElementChild.textContent = s.aLabel;
+    } else {
+      $("#aBox").textContent = s.a;
+      $("#bBox").textContent = s.b;
+      $$(".answer .label")[0].lastElementChild.textContent = s.aLabel;
+      $$(".answer .label")[1].lastElementChild.textContent = s.bLabel;
+    }
+  } else {
+    $("#aBox").textContent = s.a;
+    $$(".answer .label")[0].firstElementChild.textContent = "Output";
+    $$(".answer .label")[0].lastElementChild.textContent = s.aLabel;
+  }
+  $(".left h3").textContent = state.mode === "pairwise" ? "Pairwise sample" : "Pointwise sample · rubric: hallucination";
+}
+
+function resetRun() {
+  state.ran = false;
+  state.judgeStatus = { A: "pending", B: "pending", C: "pending" };
+  state.judgeResults = { A: null, B: null, C: null };
+  state.panelVerdict = null;
+  state.humanPick = null;
+  renderJudges();
+  renderAggregation();
+  renderHumanRow();
+}
+
+function renderJudges() {
+  $("#judgesGrid").innerHTML = JUDGES.map(j => {
+    const status = state.judgeStatus[j.id];
+    const res = state.judgeResults[j.id];
+    return `
+      <div class="judge ${status}">
+        <div class="jh">
+          <span class="badge ${j.id}">${j.id}</span>
+          <span class="jn">${j.name}</span>
+          <span class="jm">${j.provider}</span>
+        </div>
+        <div class="jbody">
+          <span class="vote ${res ? res.vote : ''}">${res ? res.vote : '—'}</span>
+          <div class="reason">${res ? res.reason : (status === 'running' ? 'judging…' : 'awaiting run')}</div>
+          <div class="latency">${res ? res.latency + 'ms' : ''}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderAggregation() {
+  const v = state.panelVerdict;
+  if (!v) {
+    $("#aggVerdict").className = "verdict-big pending";
+    $("#aggVerdict").textContent = "—";
+    $("#aggAgree").innerHTML = "awaiting run";
+    $("#aggReason").textContent = "Click Run panel · three judges score in parallel.";
+    return;
+  }
+  $("#aggVerdict").className = "verdict-big " + v.verdict;
+  $("#aggVerdict").textContent = v.verdict;
+  const counts = v.counts;
+  const total = Object.values(counts).reduce((a,b) => a+b, 0);
+  const max = Math.max(...Object.values(counts));
+  let agreeText;
+  if (max === total) agreeText = `<span class="unanimous"><b>unanimous</b></span> · 3/3 agree`;
+  else if (max === 2) agreeText = `<b>2/3 majority</b> · 1 dissenter`;
+  else agreeText = `<span class="disagree"><b>split</b></span> · 1/1/1 · escalate to human`;
+  const countStr = Object.entries(counts).map(([k,v]) => `${k}:${v}`).join(" · ");
+  $("#aggAgree").innerHTML = agreeText + `<br><span style="font-size:11px;color:var(--gray-500);">${countStr}</span>`;
+
+  let reason;
+  if (state.mode === "pointwise") {
+    if (max === total) reason = v.verdict === "true"
+      ? "All three flag this as hallucinated. High-confidence fail."
+      : "All three pass it. Low-ambiguity grounded output.";
+    else if (max === 2) reason = "Two-judge majority. The dissenting judge may surface a real edge — worth a glance.";
+    else reason = "Split panel. Rubric likely unclear on this edge case. Send to human.";
+  } else {
+    if (max === total) reason = "All three judges concur. Low ambiguity, ship the verdict.";
+    else if (max === 2) reason = "Two-judge majority. The dissenting judge may surface a real edge — worth a glance.";
+    else reason = "Panel split 1/1/1. Either the rubric is unclear, the answers are genuinely tied, or the judges have non-overlapping biases. Human review recommended.";
+  }
+  $("#aggReason").textContent = reason;
+}
+
+function renderHumanRow() {
+  $("#humanPicks").innerHTML = voteSpace().map(v =>
+    `<button data-h="${v}" class="${state.humanPick === v ? 'on '+v : ''}">${v}</button>`
+  ).join("");
+  const pill = $("#humanAgreePill");
+  if (!state.humanPick) {
+    pill.textContent = "no label yet";
+    pill.className = "agree-pill";
+  } else if (!state.panelVerdict) {
+    pill.textContent = `you said ${state.humanPick}`;
+    pill.className = "agree-pill";
+  } else if (state.humanPick === state.panelVerdict.verdict) {
+    pill.textContent = `✓ panel matches you`;
+    pill.className = "agree-pill match";
+  } else {
+    pill.textContent = `✗ panel said ${state.panelVerdict.verdict}, you said ${state.humanPick}`;
+    pill.className = "agree-pill miss";
+  }
+}
+
+function maybeSwap(v) {
+  if (state.mode !== "pairwise" || !state.positionSwapped) return v;
+  if (v === "A") return "B";
+  if (v === "B") return "A";
+  return v;
+}
+
+function runPanel() {
+  resetRun();
+  const sample = current();
+  JUDGES.forEach(j => { state.judgeStatus[j.id] = "running"; });
+  renderJudges();
+  $("#aggReason").textContent = "Judging in parallel…";
+  $("#aggAgree").innerHTML = "running…";
+
+  JUDGES.forEach(j => {
+    const delay = 600 + sample.latency[j.id] * Math.random() * 2;
+    setTimeout(() => {
+      state.judgeStatus[j.id] = "done";
+      state.judgeResults[j.id] = {
+        vote: maybeSwap(sample.judgeVerdicts[j.id]),
+        reason: sample.judgeReasons[j.id],
+        latency: Math.round(sample.latency[j.id] + Math.random() * 80),
+      };
+      renderJudges();
+      maybeAggregate();
+    }, delay);
+  });
+}
+
+function maybeAggregate() {
+  if (JUDGES.some(j => state.judgeStatus[j.id] !== "done")) return;
+  const counts = {};
+  voteSpace().forEach(v => counts[v] = 0);
+  JUDGES.forEach(j => counts[state.judgeResults[j.id].vote]++);
+  const max = Math.max(...Object.values(counts));
+  let verdict;
+  if (state.mode === "pairwise") {
+    if (max === 1) verdict = "TIE";
+    else verdict = Object.entries(counts).find(([,v]) => v === max)[0];
+  } else {
+    // pointwise boolean · majority vote
+    verdict = counts.true >= counts.false ? "true" : "false";
+    // tie = explicit majority of true wins (fail-closed: report hallucinated when tied)
+  }
+  state.panelVerdict = { verdict, counts };
+  state.ran = true;
+  renderAggregation();
+  renderHumanRow();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderSample();
+  renderJudges();
+  renderAggregation();
+  renderHumanRow();
+
+  $("#runBtn").addEventListener("click", runPanel);
+  $("#prevBtn").addEventListener("click", () => {
+    state.idx = (state.idx - 1 + SAMPLES.length) % SAMPLES.length;
+    state.positionSwapped = false;
+    resetRun();
+    renderSample();
+  });
+  $("#nextBtn").addEventListener("click", () => {
+    state.idx = (state.idx + 1) % SAMPLES.length;
+    state.positionSwapped = false;
+    resetRun();
+    renderSample();
+  });
+  $("#positionSwap").addEventListener("click", () => {
+    state.positionSwapped = !state.positionSwapped;
+    renderSample();
+    if (state.ran) runPanel();
+  });
+  $("#humanPicks").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    state.humanPick = b.dataset.h;
+    renderHumanRow();
+  });
+  $$(".modes button").forEach(b => b.addEventListener("click", () => {
+    $$(".modes button").forEach(x => x.classList.toggle("active", x === b));
+    state.mode = b.dataset.mode;
+    state.idx = 0;
+    state.positionSwapped = false;
+    if (state.mode === "pointwise") {
+      $$(".answer")[1].style.display = "none";
+      $("#positionSwap").style.display = "none";
+    } else {
+      $$(".answer")[1].style.display = "";
+      $("#positionSwap").style.display = "";
+    }
+    resetRun();
+    renderSample();
+  }));
+});
+</script>
+</body>
+</html>

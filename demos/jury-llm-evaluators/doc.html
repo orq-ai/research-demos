@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three judges beat one · notes on building an LLM jury</title>
+<style>
+  :root {
+    --ivory:#FAF9F5; --slate:#141413; --clay:#D97757; --oat:#E3DACC;
+    --olive:#788C5D; --sky:#6A8CAF; --plum:#8B6BA8;
+    --gray-150:#F0EEE6; --gray-300:#D1CFC5;
+    --gray-500:#87867F; --gray-600:#5C5B55; --gray-700:#3D3D3A;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ivory); color: var(--gray-700);
+    font-family: var(--sans); font-size: 15.5px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    padding: 56px 24px 120px;
+  }
+  .page {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 48px;
+  }
+  @media (max-width: 960px) { .page { grid-template-columns: 1fr; } aside { order: 2; position: static; } }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--gray-500); margin-bottom: 10px;
+  }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: 36px; color: var(--slate); letter-spacing: -0.01em; margin-bottom: 14px; }
+  .lead { font-size: 17px; color: var(--gray-600); max-width: 700px; margin-bottom: 30px; }
+  h2 { font-family: var(--serif); font-weight: 500; font-size: 26px; color: var(--slate); margin: 42px 0 12px; letter-spacing: -0.01em; }
+  h3 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--slate); margin: 26px 0 8px; }
+  p { margin-bottom: 14px; max-width: 700px; }
+  ul, ol { padding-left: 22px; margin-bottom: 14px; max-width: 700px; }
+  ul li, ol li { margin-bottom: 6px; }
+  code { font-family: var(--mono); font-size: 13px; background: var(--gray-150); padding: 1px 6px; border-radius: 4px; color: var(--slate); }
+  pre {
+    background: var(--slate); color: var(--ivory);
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+    padding: 16px 18px; border-radius: 10px;
+    overflow-x: auto; margin: 14px 0;
+    max-width: 720px;
+  }
+  pre .c { color: #C9B98A; }
+  pre .k { color: #E0856B; }
+  a { color: var(--clay); text-decoration: none; border-bottom: 1px dashed var(--clay); }
+  a:hover { border-bottom-style: solid; }
+
+  /* takeaways */
+  .takeaways {
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 12px;
+    padding: 20px 22px; margin: 24px 0 36px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    max-width: 880px;
+  }
+  .takeaway .n {
+    font-family: var(--mono); font-size: 10.5px; color: var(--clay);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
+  }
+  .takeaway .t { font-family: var(--serif); font-weight: 500; font-size: 16px; color: var(--slate); margin-bottom: 4px; }
+  .takeaway .d { font-size: 13.5px; color: var(--gray-600); line-height: 1.5; }
+  @media (max-width: 720px) { .takeaways { grid-template-columns: 1fr; } }
+
+  .callout {
+    background: var(--white); border-left: 3px solid var(--olive);
+    padding: 14px 18px; border-radius: 0 8px 8px 0;
+    margin: 16px 0; font-size: 14px; max-width: 700px;
+  }
+  .callout.clay { border-left-color: var(--clay); }
+  .callout b { color: var(--slate); }
+
+  figure {
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 10px;
+    padding: 18px 18px 12px; margin: 18px 0;
+    max-width: 720px;
+  }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 12.5px; color: var(--gray-500); padding: 8px 4px 0; }
+
+  /* tables */
+  table {
+    width: 100%; max-width: 720px; border-collapse: collapse;
+    margin: 14px 0; font-size: 13.5px;
+    border: 1px solid var(--gray-300); border-radius: 10px; overflow: hidden;
+  }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--gray-300); vertical-align: top; }
+  th { background: var(--gray-150); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); font-weight: 500; }
+  td:not(:last-child) { border-right: 1px solid var(--gray-300); }
+  tr:last-child td { border-bottom: none; }
+  td b { color: var(--slate); }
+
+  /* side glossary */
+  aside {
+    position: sticky; top: 30px; align-self: start;
+    font-size: 13px;
+  }
+  aside h4 {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 10px; font-weight: 500;
+  }
+  aside .gloss {
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 12px;
+  }
+  aside .gloss dt { font-family: var(--mono); font-size: 11.5px; color: var(--clay); margin-bottom: 2px; }
+  aside .gloss dd { color: var(--gray-600); font-size: 12.5px; line-height: 1.5; margin-bottom: 8px; }
+  aside .gloss dd:last-child { margin-bottom: 0; }
+
+  /* references */
+  .refs ol { padding-left: 22px; max-width: 720px; }
+  .refs li { font-size: 13px; color: var(--gray-600); margin-bottom: 6px; }
+  .refs li b { color: var(--slate); }
+
+  .links-row {
+    display: flex; gap: 12px; font-family: var(--mono); font-size: 12px;
+    color: var(--gray-500); margin-bottom: 28px;
+  }
+  .links-row a { color: var(--clay); border: none; padding: 4px 10px;
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: 6px;
+  }
+  .links-row a:hover { border-color: var(--clay); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<main>
+<div class="eyebrow">research · llm evaluation · orq.ai</div>
+<h1>Three judges beat one</h1>
+<p class="lead">Notes on building an LLM jury — how to pick models, count votes, identify bias, and ship a panel that lands at human-level agreement without paying for a giant single judge.</p>
+
+<div class="links-row">
+  <a href="jury-prototype.html">↗ interactive prototype</a>
+  <a href="jury-deck.html">↗ slide deck</a>
+  <a href="../workflow-design.html">↗ workflow design</a>
+</div>
+
+<div class="takeaways">
+  <div class="takeaway">
+    <div class="n">01</div>
+    <div class="t">Panels beat single judges</div>
+    <div class="d">Three diverse small judges from different providers outperform a single large judge while reducing systematic bias through redundancy.</div>
+  </div>
+  <div class="takeaway">
+    <div class="n">02</div>
+    <div class="t">Go small and cheap</div>
+    <div class="d">Three smaller models from three providers cost less than one large judge and score better on subjective tasks. ~7× cheaper in our runs.</div>
+  </div>
+  <div class="takeaway">
+    <div class="n">03</div>
+    <div class="t">Disagreement is data</div>
+    <div class="d">Panel disagreement is signal, not noise. Use it to flag ambiguous samples for human review and to debug your evaluation prompts.</div>
+  </div>
+</div>
+
+<h2>When to use LLM judges</h2>
+<p>LLM-as-a-judge has become the default pattern for evaluating generative outputs at scale. You're producing thousands of completions — question-answering, summarisation, code, agents — and human evaluation gets expensive fast. Judges fill the gap: score or rank outputs in seconds, at a fraction of the cost, with consistent rubrics.</p>
+<p>The convenience hides a critical tradeoff. You've replaced human judgement with machine judgement, and machine judgement has its own systematic biases.</p>
+
+<h2>One judge, several biases</h2>
+<p>A single LLM judge is not neutral. Different training data, different architectures, different instruction-tuning, different constitutional constraints — these manifest as measurable, repeatable biases:</p>
+
+<ul>
+  <li><b>Verbosity bias.</b> Larger instruction-tuned models reward longer answers even when concise is better.</li>
+  <li><b>Stylistic bias.</b> Favouring argumentative structures that match the model's own training distribution.</li>
+  <li><b>Conservative bias.</b> Systematically hedging on controversial / edge-case responses.</li>
+  <li><b>Confidence mismatch.</b> Models trained to express high confidence penalise "I'm not sure" even when it's correct.</li>
+  <li><b>Domain brittleness.</b> Smaller models struggle on medical, legal, technical evaluation.</li>
+  <li><b>Self-preference bias.</b> Judges over-rate outputs from their own family. <a href="#r-yang">Yang et al. (2026)</a> quantify this across GPT-4, Claude, Gemini.</li>
+  <li><b>Position bias.</b> In pairwise A-vs-B, order outranks content. <a href="#r-shi">Shi et al. (2025)</a> show position consistency varies wildly across 15 judges × 22 tasks.</li>
+  <li><b>Length bias.</b> Longer answers win, regardless of correctness. Documented in <a href="#r-zheng">MT-Bench</a>.</li>
+</ul>
+
+<p>These biases are <em>systematic</em>, not random. Run the same prompt through the same judge twice and you'll get the same skewed score. If your evaluation metric leans one way, your whole pipeline silently selects for that lean.</p>
+
+<h2>Pointwise vs pairwise</h2>
+<p>Two judge protocols dominate the literature. The bias-reduction case for panels depends on which one you're running.</p>
+
+<ul>
+  <li><b>Pointwise</b> (direct scoring). Judge sees one response, returns a score. Output is <code>pass/fail</code>, a category, or a 0–100 numeric. Useful for objective tasks where the rubric is writable down: factuality, toxicity, code correctness.</li>
+  <li><b>Pairwise</b> (A vs B). Judge sees two candidate responses to the same input and picks <code>A</code>, <code>B</code>, or <code>TIE</code>. Useful for subjective tasks where humans can rank but can't articulate a closed rubric. Helpfulness, preference, "which answer is better?"</li>
+</ul>
+
+<p><a href="#r-wang">Wang et al. (2025)</a> compared the two protocols and found pairwise verdicts flip ~4× more often than pointwise under benign perturbations:</p>
+
+<figure>
+  <svg viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#5C5B55">
+      <line x1="60" y1="200" x2="560" y2="200" stroke="#D1CFC5" stroke-width="1"/>
+      <line x1="60" y1="40"  x2="60"  y2="200" stroke="#D1CFC5" stroke-width="1"/>
+      <text x="40" y="200" text-anchor="end">0</text>
+      <text x="40" y="160" text-anchor="end">10</text>
+      <text x="40" y="120" text-anchor="end">20</text>
+      <text x="40" y="80"  text-anchor="end">30</text>
+      <text x="40" y="40"  text-anchor="end">40</text>
+
+      <rect x="180" y="164" width="100" height="36" fill="#788C5D"/>
+      <text x="230" y="155" text-anchor="middle" fill="#141413" font-weight="600" font-size="14">9%</text>
+      <text x="230" y="218" text-anchor="middle">Pointwise</text>
+      <text x="230" y="232" text-anchor="middle" fill="#87867F">single-output</text>
+
+      <rect x="380" y="60" width="100" height="140" fill="#D97757"/>
+      <text x="430" y="50" text-anchor="middle" fill="#141413" font-weight="600" font-size="14">35%</text>
+      <text x="430" y="218" text-anchor="middle">Pairwise</text>
+      <text x="430" y="232" text-anchor="middle" fill="#87867F">A vs B</text>
+
+      <text x="20" y="20" font-size="11.5" fill="#141413" font-weight="600">Verdict-flip rate (%) under benign re-prompts</text>
+    </g>
+  </svg>
+  <figcaption>Same judge, same items, slightly perturbed prompts. Pairwise is ~4× more unstable than pointwise. Wang et al. 2025.</figcaption>
+</figure>
+
+<p>That gap is exactly why the bias-reduction case for panels is strongest in pairwise mode. For pointwise objective tasks, a single strong model is often enough. For pairwise subjective tasks — which is most of what humans actually want graded — single judges are too noisy, and panels become structural.</p>
+
+<h2>More annotators, less bias</h2>
+<p>Multiple judges solve the bias problem through redundancy. No single judge's biases dominate if others pull in different directions. This is why inter-rater studies and A/B tests work. Diversity of perspective reduces systematic error.</p>
+
+<p>The strongest empirical case for doing this with LLMs is <a href="#r-verga">Verga et al. (2024), "Replacing Judges with Juries"</a>. Their <b>Panel of LLM evaluators (PoLL)</b> — three small models from different providers (<code>command-r</code>, <code>gpt-3.5-turbo</code>, <code>haiku</code>) — beat a single large judge across six datasets, mitigated the biases, and cost about <b>7× less</b>.</p>
+
+<p>The math: if three uncorrelated judges agree, joint error is small. If they disagree, you've detected a hard datapoint that probably warrants human review. This mirrors classical ensemble classification — small diverse models beat one large one.</p>
+
+<figure>
+  <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#87867F"/>
+      </marker>
+    </defs>
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#141413">
+      <rect x="20" y="90" width="120" height="40" rx="8" fill="#E3DACC" stroke="#C8B998"/>
+      <text x="80" y="116" text-anchor="middle">Prompt + Output</text>
+
+      <rect x="200" y="20" width="160" height="36" rx="8" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+      <text x="280" y="44" text-anchor="middle">Judge A · Claude Haiku</text>
+
+      <rect x="200" y="92" width="160" height="36" rx="8" fill="#FFFFFF" stroke="#788C5D" stroke-width="1.5"/>
+      <text x="280" y="116" text-anchor="middle">Judge B · Gemini Flash</text>
+
+      <rect x="200" y="164" width="160" height="36" rx="8" fill="#FFFFFF" stroke="#6A8CAF" stroke-width="1.5"/>
+      <text x="280" y="188" text-anchor="middle">Judge C · GPT-4o-mini</text>
+
+      <rect x="410" y="92" width="160" height="36" rx="8" fill="#141413"/>
+      <text x="490" y="116" text-anchor="middle" fill="#FAF9F5">Aggregate · majority / mean</text>
+    </g>
+    <g stroke="#87867F" stroke-width="1.5" fill="none">
+      <path d="M140 105 L200 40" marker-end="url(#arr)"/>
+      <path d="M140 110 L200 110" marker-end="url(#arr)"/>
+      <path d="M140 115 L200 180" marker-end="url(#arr)"/>
+      <path d="M360 40 L410 105" marker-end="url(#arr)"/>
+      <path d="M360 110 L410 110" marker-end="url(#arr)"/>
+      <path d="M360 180 L410 115" marker-end="url(#arr)"/>
+    </g>
+  </svg>
+  <figcaption>Panel architecture. Three judges run in parallel. Aggregator emits the verdict, the per-judge votes, and the disagreement signal.</figcaption>
+</figure>
+
+<h2>How to choose your judges</h2>
+<p>This is fundamentally an operations research task: pick the models that reach the human-agreement baseline for the cheapest cost. The "pick the best models" instinct misses the real optimisation goal.</p>
+
+<p>Start by establishing a realistic agreement ceiling. Human annotators don't hit perfect agreement on pairwise judgements — demanding perfection from judge models sets an unrealistic standard that flatters bad evaluation work.</p>
+
+<h3>The ceiling is human–human agreement</h3>
+<ul>
+  <li><a href="#r-zheng">MT-Bench</a> reports human-human pairwise around <b>0.81</b> (excluding ties); <b>GPT-4 vs humans at 0.85</b>.</li>
+  <li><a href="#r-chiang">Chatbot Arena</a> reports crowd-vs-expert agreement <b>72–83%</b>, expert-vs-expert <b>79–90%</b>.</li>
+  <li><a href="#r-mchugh">Cohen's κ</a> band: 0.6–0.8 = "substantial"; > 0.8 = "near-perfect". With ties and harder prompts, strong human pools land around <b>κ ≈ 0.65</b>.</li>
+</ul>
+
+<figure>
+  <svg viewBox="0 0 640 220" xmlns="http://www.w3.org/2000/svg">
+    <g font-family="ui-monospace, monospace" font-size="11" fill="#5C5B55">
+      <rect x="60"  y="40" width="120" height="160" fill="#F3D9CC" opacity="0.7"/>
+      <text x="120" y="32" text-anchor="middle">None / poor</text>
+      <rect x="180" y="40" width="120" height="160" fill="#E3DACC" opacity="0.7"/>
+      <text x="240" y="32" text-anchor="middle">Minimal / weak</text>
+      <rect x="300" y="40" width="120" height="160" fill="#F0EEE6"/>
+      <text x="360" y="32" text-anchor="middle">Moderate</text>
+      <rect x="420" y="40" width="100" height="160" fill="#DDE5C9"/>
+      <text x="470" y="32" text-anchor="middle">Substantial</text>
+      <rect x="520" y="40" width="80"  height="160" fill="#A8C081"/>
+      <text x="560" y="32" text-anchor="middle">Near-perfect</text>
+
+      <line x1="60" y1="200" x2="600" y2="200" stroke="#5C5B55"/>
+      <text x="60" y="218">0.0</text>
+      <text x="180" y="218">0.2</text>
+      <text x="300" y="218">0.4</text>
+      <text x="420" y="218">0.6</text>
+      <text x="520" y="218">0.8</text>
+      <text x="600" y="218">1.0</text>
+
+      <circle cx="546" cy="70" r="5" fill="#788C5D"/>
+      <text x="558" y="74" fill="#141413">0.81 · human-human (MT-Bench)</text>
+
+      <circle cx="570" cy="95" r="5" fill="#D97757"/>
+      <text x="582" y="99" fill="#141413">0.85 · GPT-4 vs human</text>
+
+      <rect x="492" y="120" width="50" height="10" fill="#788C5D" opacity="0.8"/>
+      <text x="550" y="129" fill="#141413">0.72–0.83 · crowd vs expert</text>
+
+      <rect x="534" y="148" width="42" height="10" fill="#4B5C39"/>
+      <text x="584" y="156" fill="#141413">0.79–0.90 · expert vs expert</text>
+    </g>
+  </svg>
+  <figcaption>Human agreement on pairwise judgements lives in the 0.6–0.9 band, not at 1.0. Targeting κ ≥ 0.65 is the realistic baseline.</figcaption>
+</figure>
+
+<h3>A short selection protocol</h3>
+<ol>
+  <li><b>Literature review.</b> Find the most similar task that already published agreement results. In our example, human preference between two answers was about <b>0.65 κ</b>. That was our baseline target for the 3-model panel.</li>
+  <li><b>Get a small human-labeled set.</b> 100 pairwise items, ideally 2+ annotators so you can compute human-human κ as your in-house ceiling.</li>
+  <li><b>Score every candidate against it.</b> Per-judge κ vs the human consensus. Drop anything well below the human-human floor (κ < ~0.5 is usually a discard).</li>
+  <li><b>Pick 3 from different providers</b> that hit the baseline, ideally with <em>different error profiles</em>. Two judges that agree with humans at 0.7 but agree with each other at 0.95 give you almost no panel benefit. Want some balance — judges that miss on different prompts.</li>
+  <li><b>Log per-judge agreement in production traces.</b> The score that matters long-term isn't the aggregate panel score; it's whether each judge is still tracking your reference set three months later.</li>
+</ol>
+
+<div class="callout clay">
+  <b>The practical sweet spot</b> · a panel that lands collectively at human-human κ, with judges that disagree on different prompts. Pushing higher usually means overfitting to a narrower prompt distribution, not getting smarter.
+</div>
+
+<h2>Panel selection as an optimisation problem</h2>
+<p>The literature is converging on a formal framing: judge selection is a <a href="https://en.wikipedia.org/wiki/Combinatorial_optimization">combinatorial optimisation</a> problem. Pick the cheapest subset of candidate judges whose aggregated agreement clears your target κ, subject to a diversity constraint (no two judges from the same provider family).</p>
+
+<pre><span class="c"># Formal problem</span>
+<span class="k">minimize:</span>    cost(judges)
+<span class="k">subject to:</span>  κ(judges, human) ≥ κ_target    <span class="c"># e.g. 0.65</span>
+<span class="k">constraint:</span>  diversity(judges) > threshold  <span class="c"># no two judges</span>
+                                            <span class="c"># from same provider</span></pre>
+
+<p>Recent work attacks this from different angles:</p>
+<ul>
+  <li><a href="#r-tornede">Tornede et al. (2025)</a> · multi-objective hyperparameter search for judge configs across cost and accuracy.</li>
+  <li><a href="#r-dont-pick">"Don't Always Pick the Highest-Performing Model" (2026)</a> · greedy mutual-information selection. Correlation matters, not just accuracy.</li>
+  <li><a href="#r-li">Auto-Prompt Ensemble (Li et al., 2025)</a> · dynamic per-judge confidence weighting on top of static selection.</li>
+</ul>
+
+<p>In practice you don't need to solve this perfectly. The ensemble effect kicks in as long as the providers are different. GPT tends to over-hedge. Claude is nuanced but conservative on edge cases. Mistral / Gemini bring their own quirks. When all three judge the same output, a single model's systematic bias gets diluted — and when they disagree, that disagreement is where the interesting edge cases live.</p>
+
+<p>This extends classical ensemble insight. We combine weak learners to reduce both bias (different models emphasise different patterns) and variance (averaging smooths individual prediction noise). With LLM judges the dynamic is the same. Two independent judge calls might both make mistakes, but if their mistakes point in <em>different</em> directions, majority vote or inspection of disagreement becomes a reliable signal. Research on multi-annotator agreement (<a href="https://en.wikipedia.org/wiki/Krippendorff%27s_alpha">Krippendorff's α</a>, <a href="https://en.wikipedia.org/wiki/Fleiss%27_kappa">Fleiss' κ</a>) shows this effect is strongest with <b>3–5 annotators</b>. More than that and gains plateau while costs scale linearly.</p>
+
+<p>So the "3 judges" rule isn't arbitrary. It's the point where you capture the ensemble benefit (diverse error surfaces) without overpaying for diminishing returns.</p>
+
+<h2>Lessons from running this in practice</h2>
+<p>We tested the pattern on two workloads: pairwise ranking for tournament-style model grading, and pairwise preference collection for RLHF data generation. Different mechanics, but a few lessons keep showing up.</p>
+
+<h3>On setup</h3>
+<ul>
+  <li><b>Make TIE a real label.</b> First instinct is to collapse 1:1:1 splits into "no winner" and move on. Don't. TIE tells you something: the judges can't distinguish, or the samples are genuinely ambiguous. Tracking TIE rate is your diagnostic for prompt clarity.</li>
+  <li><b>Position swap for pairwise.</b> Re-run hard A vs B comparisons as B vs A and average the verdicts. Position bias is a pairwise problem; this is a cheap fix.</li>
+</ul>
+
+<h3>On optimisation</h3>
+<ul>
+  <li><b>Self-judge exclusion is critical.</b> If your generator is Claude, your judges must not include Claude. Models prefer their own outputs; including the sibling model breaks independence.</li>
+  <li><b>Provider diversity > model diversity.</b> Different families (Anthropic, OpenAI, Google) matter more than three OpenAI models. Mix providers first.</li>
+</ul>
+
+<h3>On outputs</h3>
+<ul>
+  <li><b>Disagree on hard cases; that's the point.</b> If three judges always agree, you might be over-fitting to a narrow style. Disagreement on edge cases is a signal.</li>
+  <li><b>Batch API for offline work.</b> If the eval isn't user-facing (nightly reruns, dataset rescoring), use batch pricing. Halves the bill with a 24-hour SLA.</li>
+</ul>
+
+<h2>The minimal-jury checklist</h2>
+<p>Distilling literature plus our prototypes into a defaults table:</p>
+
+<table>
+  <thead>
+    <tr><th>Decision</th><th>Recommended</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Panel size</td><td>3 (odd)</td><td>Avoids ties; PoLL paper showed 3 is enough.</td></tr>
+    <tr><td>Provider mix</td><td>One per family (Anthropic + OpenAI + Google)</td><td>Different families = less intra-family bias.</td></tr>
+    <tr><td>Judge tier</td><td>Small / fast models</td><td>A panel of small judges can beat one large judge if they hit the baseline.</td></tr>
+    <tr><td>Aggregation (boolean)</td><td>k-of-N majority</td><td>Fail-closed on ties unless told otherwise.</td></tr>
+    <tr><td>Aggregation (numeric)</td><td>Mean + report std</td><td>Std is the disagreement signal.</td></tr>
+    <tr><td>Aggregation (categorical)</td><td>Mode + explicit <code>TIE</code> label</td><td>Don't hide ties in nulls.</td></tr>
+    <tr><td>Aggregation (pairwise)</td><td>Majority over A / B / TIE</td><td>TIE means panel split, not draw between answers.</td></tr>
+    <tr><td>Position swap</td><td>For pairwise</td><td>Position bias is a pairwise problem.</td></tr>
+    <tr><td>Per-judge params</td><td>Don't expose</td><td>One prompt, one temperature (0). Nothing to tune per judge.</td></tr>
+  </tbody>
+</table>
+
+<h2>A note on building this for yourself</h2>
+<p>Start with the minimum viable jury: three judges on a real prompt, pairwise mode. Don't overthink the first run. This will surface real failure modes — position bias favouring certain positions, one provider consistently rating answers higher, TIE behaviour on specific prompt types — that metrics alone won't catch.</p>
+
+<p>Practically:</p>
+<ul>
+  <li>Run judges in parallel (all three API calls concurrently, not sequentially).</li>
+  <li>Cache judge responses on repeated prompts to save cost during iteration.</li>
+  <li>Log disagreement explicitly. Don't lose signal by averaging too early.</li>
+  <li>Monitor per-judge accuracy against a small labeled holdout set.</li>
+  <li>Iterate on provider mix, not prompt engineering. If one judge is lagging, swap it before tweaking instructions.</li>
+</ul>
+
+<h2>Example pairwise prompt</h2>
+<pre>TASK: Compare two answers to a user question and pick the better one.
+
+QUESTION: "How do I optimize database queries for a large dataset?"
+
+ANSWER A:
+"Use indexing on frequently queried columns, consider denormalization,
+and run EXPLAIN ANALYZE to understand query plans. Query complexity
+grows with data size, so these optimizations are critical."
+
+ANSWER B:
+"Add indexes to your WHERE clause columns. Use LIMIT to reduce results.
+Also, caching helps a lot. You should also consider using Redis or
+memcached for faster lookups."
+
+INSTRUCTIONS:
+- Judge which answer is more helpful, more accurate, better structured
+- Consider: correctness, completeness, clarity, practical usefulness
+- Be consistent in how you weight these factors
+- Output ONLY: "A", "B", or "TIE"
+
+YOUR DECISION: ___</pre>
+
+<p>Run the same prompt to each of the three judges in parallel, then aggregate:</p>
+<ul>
+  <li>If 2+ judges pick A → Winner = A</li>
+  <li>If all three pick different options → hard case, flag for human review</li>
+  <li>If 2+ judges pick TIE → the question may be ambiguous, improve the prompt</li>
+</ul>
+
+<p>The disagreement metric tells you where your prompts are unclear.</p>
+
+<div class="callout">
+  Every judge call in our prototypes routes through <a href="https://orq.ai">orq.ai AI Router</a>, which lets us swap and benchmark multiple model combinations behind a single OpenAI-compatible endpoint, with traces, cost, and per-judge agreement logged automatically. If you're running LLM-as-judge today and want to pilot a jury, <a href="https://orq.ai">drop us a line</a>.
+</div>
+
+<h2 id="references">References</h2>
+<div class="refs">
+<ol>
+  <li id="r-zheng"><b>Zheng et al. (2023).</b> Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena. NeurIPS. <em>Human-human pairwise ~0.81, GPT-4 vs humans ~0.85.</em></li>
+  <li id="r-chiang"><b>Chiang et al. (2024).</b> Chatbot Arena · An Open Platform for Evaluating LLMs by Human Preference. ICML. <em>Crowd-vs-expert 72–83%, expert-vs-expert 79–90%.</em></li>
+  <li id="r-mchugh"><b>McHugh (2012).</b> Interrater reliability · the kappa statistic. <em>0.6–0.8 substantial; > 0.8 near-perfect.</em></li>
+  <li id="r-tornede"><b>Tornede et al. (2025).</b> Tuning LLM Judge Design Decisions for 1/1000 of the Cost. <em>Multi-objective, multi-fidelity HPO for judge configs.</em></li>
+  <li id="r-dont-pick"><b>Don't Always Pick the Highest-Performing Model (2026).</b> Greedy MI for budget-constrained ensemble selection.</li>
+  <li id="r-li"><b>Li et al. (2025).</b> Auto-Prompt Ensemble for LLM Judge. <em>APE with Collective Confidence metric for dynamic judge weighting.</em></li>
+  <li id="r-wang"><b>Wang et al. (2025).</b> Pairwise or Pointwise? Evaluating Feedback Protocols for Bias in LLM-Based Evaluation. <em>Pairwise prefs flip ~35% vs ~9% pointwise.</em></li>
+  <li id="r-verga"><b>Verga et al. (2024).</b> Replacing Judges with Juries · Evaluating LLM Generations with a Panel of Diverse Models. arXiv:2404.18796.</li>
+  <li id="r-shi"><b>Shi et al. (2025).</b> Judging the Judges · A Systematic Study of Position Bias in LLM-as-a-Judge. IJCNLP.</li>
+  <li id="r-yang"><b>Yang et al. (2026).</b> Quantifying and Mitigating Self-Preference Bias of LLM Judges. arXiv.</li>
+</ol>
+</div>
+
+</main>
+
+<aside>
+  <div class="gloss">
+    <h4>Glossary</h4>
+    <dl>
+      <dt>PoLL</dt>
+      <dd>Panel of LLM evaluators. Verga et al. 2024 — three small models from three providers beat one large judge.</dd>
+      <dt>Cohen's κ</dt>
+      <dd>Agreement coefficient between two raters, corrected for chance. 0.6–0.8 substantial · &gt;0.8 near-perfect.</dd>
+      <dt>Fleiss' κ</dt>
+      <dd>Generalisation of Cohen's κ to N raters.</dd>
+      <dt>Bradley-Terry</dt>
+      <dd>Paired-comparison MLE. Roll panel verdicts into a leaderboard.</dd>
+      <dt>Self-preference bias</dt>
+      <dd>Judges over-rate outputs from their own model family.</dd>
+      <dt>Position bias</dt>
+      <dd>In pairwise A-vs-B, the order matters more than the content.</dd>
+      <dt>TIE</dt>
+      <dd>Explicit panel-split label. Don't collapse into null.</dd>
+    </dl>
+  </div>
+  <div class="gloss">
+    <h4>Companion artefacts</h4>
+    <dl>
+      <dt><a href="jury-prototype.html">↗ prototype</a></dt>
+      <dd>Interactive panel-of-judges UI. Pairwise A/B/TIE with three judges side-by-side.</dd>
+      <dt><a href="jury-deck.html">↗ deck</a></dt>
+      <dd>Slide deck distillation.</dd>
+    </dl>
+  </div>
+</aside>
+
+</div>
+</body>
+</html>

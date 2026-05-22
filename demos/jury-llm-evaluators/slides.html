@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weak judges, strong panel · deck</title>
+<style>
+  :root {
+    --ivory:#FAF9F5; --slate:#141413; --clay:#D97757; --oat:#E3DACC;
+    --olive:#788C5D; --sky:#6A8CAF; --plum:#8B6BA8;
+    --gray-150:#F0EEE6; --gray-300:#D1CFC5;
+    --gray-500:#87867F; --gray-600:#5C5B55; --gray-700:#3D3D3A;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans:  system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono:  ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--ivory); color: var(--gray-700); font-family: var(--sans); -webkit-font-smoothing: antialiased; height: 100%; }
+  body { scroll-snap-type: y mandatory; overflow-y: auto; }
+
+  .slide {
+    height: 100vh; min-height: 100vh;
+    scroll-snap-align: start;
+    padding: 64px 56px;
+    display: flex; flex-direction: column; justify-content: center;
+    position: relative;
+  }
+  .slide-inner { max-width: 880px; margin: 0 auto; width: 100%; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-500); margin-bottom: 14px; }
+  .slide h1 { font-family: var(--serif); font-weight: 500; font-size: 56px; line-height: 1.1; color: var(--slate); letter-spacing: -0.01em; margin-bottom: 18px; }
+  .slide h2 { font-family: var(--serif); font-weight: 500; font-size: 38px; color: var(--slate); margin-bottom: 18px; letter-spacing: -0.01em; line-height: 1.2; }
+  .slide h3 { font-family: var(--serif); font-weight: 500; font-size: 24px; color: var(--slate); margin: 18px 0 12px; }
+  .slide p { font-size: 18px; color: var(--gray-700); line-height: 1.55; max-width: 720px; margin-bottom: 14px; }
+  .slide .sub { font-size: 20px; color: var(--gray-500); max-width: 720px; margin-bottom: 20px; }
+  .slide ul { padding-left: 22px; max-width: 720px; }
+  .slide ul li { font-size: 18px; line-height: 1.55; color: var(--gray-700); margin-bottom: 8px; }
+  .slide ul li b { color: var(--slate); }
+
+  /* page count */
+  .page-no { position: absolute; bottom: 20px; right: 56px; font-family: var(--mono); font-size: 11px; color: var(--gray-500); }
+  .deck-tag { position: absolute; bottom: 20px; left: 56px; font-family: var(--mono); font-size: 11px; color: var(--gray-500); }
+
+  /* title slide */
+  .title-slide { background: var(--ivory); }
+  .title-slide h1 { font-size: 72px; line-height: 1.05; }
+  .title-slide .eyebrow { font-size: 14px; }
+  .title-slide .author { font-family: var(--mono); font-size: 13px; color: var(--gray-500); margin-top: 28px; }
+  .title-slide .author a { color: var(--clay); text-decoration: none; }
+
+  /* invert */
+  .slide.invert { background: var(--slate); color: var(--ivory); }
+  .slide.invert h1, .slide.invert h2, .slide.invert h3 { color: var(--ivory); }
+  .slide.invert p, .slide.invert li { color: var(--gray-300); }
+  .slide.invert p b, .slide.invert li b { color: var(--ivory); }
+  .slide.invert .eyebrow { color: var(--oat); }
+  .slide.invert .page-no, .slide.invert .deck-tag { color: var(--gray-300); }
+
+  /* stat callouts */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 28px; }
+  .stat { background: var(--white); border: 1px solid var(--gray-300); border-radius: 12px; padding: 22px 24px; }
+  .slide.invert .stat { background: rgba(255,255,255,0.04); border-color: var(--gray-700); }
+  .stat .big { font-family: var(--serif); font-size: 48px; font-weight: 500; color: var(--clay); line-height: 1; margin-bottom: 6px; }
+  .stat .label { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-500); margin-bottom: 6px; }
+  .stat .desc { font-size: 14px; color: var(--gray-700); line-height: 1.5; }
+  .slide.invert .stat .desc { color: var(--gray-300); }
+
+  /* card grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+  .card { background: var(--white); border: 1px solid var(--gray-300); border-radius: 10px; padding: 18px 22px; }
+  .card h4 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--slate); margin-bottom: 8px; }
+  .card p { font-size: 15px; }
+  .card .tag {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.06em; padding: 2px 8px; border-radius: 4px;
+    background: var(--oat); color: var(--slate); display: inline-block; margin-bottom: 6px;
+  }
+  .card .tag.clay { background: var(--clay); color: var(--white); }
+  .card .tag.olive { background: var(--olive); color: var(--white); }
+
+  /* bar chart */
+  .bar-row { display: grid; grid-template-columns: 180px 1fr 60px; gap: 14px; align-items: center; margin-bottom: 12px; }
+  .bar-row .lab { font-family: var(--mono); font-size: 12px; color: var(--gray-600); }
+  .bar-row .bar { height: 22px; background: var(--gray-150); border-radius: 4px; overflow: hidden; position: relative; }
+  .bar-row .fill { height: 100%; }
+  .bar-row .val { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--slate); text-align: right; }
+
+  pre {
+    background: var(--slate); color: var(--ivory);
+    font-family: var(--mono); font-size: 14px; line-height: 1.55;
+    padding: 18px 22px; border-radius: 10px;
+    margin-top: 18px; max-width: 720px;
+  }
+  pre .c { color: #C9B98A; }
+  pre .k { color: #E0856B; }
+  .slide.invert pre { background: var(--ivory); color: var(--slate); border: 1px solid var(--gray-300); }
+
+  table { width: 100%; max-width: 720px; border-collapse: collapse; margin-top: 14px; font-size: 14.5px; border: 1px solid var(--gray-300); border-radius: 10px; overflow: hidden; }
+  th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--gray-300); }
+  th { background: var(--gray-150); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500); font-weight: 500; }
+  td:not(:last-child) { border-right: 1px solid var(--gray-300); }
+  tr:last-child td { border-bottom: none; }
+  td b { color: var(--slate); }
+
+  .footer {
+    margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--gray-300);
+    font-family: var(--mono); font-size: 12px; color: var(--gray-500);
+    display: flex; gap: 16px;
+  }
+  .footer a { color: var(--clay); text-decoration: none; }
+
+  /* print: landscape slide pages, one slide per page */
+  @page { size: 13.333in 7.5in; margin: 0; }
+  @media print {
+    html, body { height: auto; overflow: visible; scroll-snap-type: none; }
+    .slide {
+      height: 7.5in; min-height: 7.5in; width: 13.333in;
+      page-break-after: always; page-break-inside: avoid; break-after: page;
+      padding: 56px 72px;
+    }
+    .slide:last-child { page-break-after: auto; }
+    .slide-inner { max-width: 1100px; }
+    .slide h1 { font-size: 60px; }
+    .slide h2 { font-size: 40px; }
+    .title-slide h1 { font-size: 84px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 · title -->
+<section class="slide title-slide">
+  <div class="slide-inner">
+    <div class="eyebrow">research · llm evaluation · orq.ai</div>
+    <h1>Weak judges,<br>strong panel</h1>
+    <p class="sub">An ensemble approach to LLM eval.</p>
+    <div class="author">Arian Pasquali · orq.ai research · May 2026</div>
+  </div>
+  <span class="deck-tag">deck</span>
+  <span class="page-no">1 / 12</span>
+</section>
+
+<!-- 2 · takeaways -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">takeaways</div>
+    <h2>Three things, if nothing else.</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="label">01</div>
+        <div class="big">For the right reasons</div>
+        <div class="desc">Name the signal first: hard-case escalation, bias coverage, or ensemble accuracy. Can't name one? Ship a single judge.</div>
+      </div>
+      <div class="stat">
+        <div class="label">02</div>
+        <div class="big">Diversity is the product</div>
+        <div class="desc">Three small models, three providers — cheaper than one large judge, with uncorrelated errors. Correlated judges = 3× invoice.</div>
+      </div>
+      <div class="stat">
+        <div class="label">03</div>
+        <div class="big">Disagreement is the signal</div>
+        <div class="desc">Splits flag hard cases. Route them to humans. Judges that never disagree are one judge billed three times.</div>
+      </div>
+    </div>
+  </div>
+  <span class="page-no">2 / 12</span>
+</section>
+
+<!-- 3 · the problem -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">the problem</div>
+    <h2>One judge, several biases.</h2>
+    <p class="sub">A single LLM judge isn't neutral. Different training data, architectures, instruction tuning, constitutional rules — these manifest as <em>systematic</em> bias.</p>
+    <div class="grid-2">
+      <div class="card">
+        <div class="tag">documented</div>
+        <h4>Self-preference</h4>
+        <p>Judges over-rate outputs from their own model family. Yang et al. 2026.</p>
+      </div>
+      <div class="card">
+        <div class="tag">documented</div>
+        <h4>Position</h4>
+        <p>In pairwise A-vs-B, order matters more than the answer. Shi et al. 2025.</p>
+      </div>
+      <div class="card">
+        <div class="tag">documented</div>
+        <h4>Length / verbosity</h4>
+        <p>Longer answers win regardless of correctness. MT-Bench 2023.</p>
+      </div>
+      <div class="card">
+        <div class="tag">documented</div>
+        <h4>Confidence mismatch</h4>
+        <p>High-confidence-trained models penalise nuanced "I'm not sure" replies.</p>
+      </div>
+    </div>
+  </div>
+  <span class="page-no">3 / 12</span>
+</section>
+
+<!-- 4 · pairwise unstable -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">data</div>
+    <h2>Pairwise judges flip <span style="color:var(--clay);">4× more often</span> than pointwise.</h2>
+    <p class="sub">Same judge, same items, slightly perturbed prompts. The bias-reduction case for panels is strongest in pairwise mode.</p>
+    <div class="bar-row">
+      <div class="lab">Pointwise</div>
+      <div class="bar"><div class="fill" style="background:#788C5D; width:9%;"></div></div>
+      <div class="val">9%</div>
+    </div>
+    <div class="bar-row">
+      <div class="lab">Pairwise (A vs B)</div>
+      <div class="bar"><div class="fill" style="background:#D97757; width:35%;"></div></div>
+      <div class="val">35%</div>
+    </div>
+    <div class="bar-row">
+      <div class="lab" style="font-size:11px;color:var(--gray-500);">verdict-flip rate</div>
+      <div class="bar" style="background:none;"></div>
+      <div class="val"></div>
+    </div>
+    <p style="margin-top:14px;font-size:14px;color:var(--gray-500);">Wang et al. 2025. Pairwise prefs flip ~35% vs ~9% pointwise under benign re-prompts.</p>
+  </div>
+  <span class="page-no">4 / 12</span>
+</section>
+
+<!-- 5 · the solution architecture -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">solution</div>
+    <h2>Panel of judges · run in parallel, aggregate.</h2>
+    <p class="sub">Verga et al. 2024 · three small models from three providers (PoLL) beat one large judge on six datasets at ~7× lower cost.</p>
+    <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg" style="margin-top:14px;">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#87867F"/>
+        </marker>
+      </defs>
+      <g font-family="ui-monospace, monospace" font-size="13" fill="#141413">
+        <rect x="20" y="100" width="150" height="48" rx="8" fill="#E3DACC" stroke="#C8B998"/>
+        <text x="95" y="130" text-anchor="middle">Prompt + Output</text>
+
+        <rect x="230" y="20" width="190" height="44" rx="8" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+        <text x="325" y="48" text-anchor="middle">Judge A · Claude Haiku</text>
+
+        <rect x="230" y="100" width="190" height="44" rx="8" fill="#FFFFFF" stroke="#788C5D" stroke-width="1.5"/>
+        <text x="325" y="128" text-anchor="middle">Judge B · Gemini Flash</text>
+
+        <rect x="230" y="180" width="190" height="44" rx="8" fill="#FFFFFF" stroke="#6A8CAF" stroke-width="1.5"/>
+        <text x="325" y="208" text-anchor="middle">Judge C · GPT-4o-mini</text>
+
+        <rect x="490" y="100" width="200" height="44" rx="8" fill="#141413"/>
+        <text x="590" y="128" text-anchor="middle" fill="#FAF9F5">Aggregate · maj / mean</text>
+      </g>
+      <g stroke="#87867F" stroke-width="1.5" fill="none">
+        <path d="M170 118 L230 42" marker-end="url(#arr)"/>
+        <path d="M170 124 L230 122" marker-end="url(#arr)"/>
+        <path d="M170 130 L230 202" marker-end="url(#arr)"/>
+        <path d="M420 42 L490 118" marker-end="url(#arr)"/>
+        <path d="M420 122 L490 122" marker-end="url(#arr)"/>
+        <path d="M420 202 L490 126" marker-end="url(#arr)"/>
+      </g>
+    </svg>
+  </div>
+  <span class="page-no">5 / 12</span>
+</section>
+
+<!-- 6 · escalation flow -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">disagreement is the product</div>
+    <h2>Hard cases route to humans.</h2>
+    <p class="sub">The panel's real output isn't the verdict — it's the routing decision. Easy cases auto-log; splits escalate. Human labels feed back into the rubric.</p>
+    <svg viewBox="0 0 1020 360" xmlns="http://www.w3.org/2000/svg" style="margin-top:12px;">
+      <defs>
+        <marker id="arrGray2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#87867F"/></marker>
+        <marker id="arrOlive2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#788C5D"/></marker>
+        <marker id="arrClay2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#D97757"/></marker>
+      </defs>
+      <g font-family="ui-monospace, monospace" font-size="12" fill="#141413">
+        <rect x="20" y="148" width="130" height="64" rx="10" fill="#E3DACC" stroke="#C8B998"/>
+        <text x="85" y="176" text-anchor="middle" font-weight="600">Items</text>
+        <text x="85" y="194" text-anchor="middle" fill="#5C5B55" font-size="11">trace · batch</text>
+
+        <rect x="190" y="32" width="200" height="50" rx="10" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+        <text x="290" y="55" text-anchor="middle" font-weight="600">Judge A · Claude</text>
+        <text x="290" y="73" text-anchor="middle" fill="#5C5B55" font-size="11">pass / fail / tie</text>
+
+        <rect x="190" y="155" width="200" height="50" rx="10" fill="#FFFFFF" stroke="#788C5D" stroke-width="1.5"/>
+        <text x="290" y="178" text-anchor="middle" font-weight="600">Judge B · Gemini</text>
+        <text x="290" y="196" text-anchor="middle" fill="#5C5B55" font-size="11">pass / fail / tie</text>
+
+        <rect x="190" y="278" width="200" height="50" rx="10" fill="#FFFFFF" stroke="#6A8CAF" stroke-width="1.5"/>
+        <text x="290" y="301" text-anchor="middle" font-weight="600">Judge C · GPT-4o-mini</text>
+        <text x="290" y="319" text-anchor="middle" fill="#5C5B55" font-size="11">pass / fail / tie</text>
+
+        <rect x="430" y="155" width="160" height="50" rx="10" fill="#141413"/>
+        <text x="510" y="178" text-anchor="middle" fill="#FAF9F5" font-weight="600">Aggregator</text>
+        <text x="510" y="196" text-anchor="middle" fill="#C9C7BD" font-size="11">majority · std · split</text>
+
+        <text x="625" y="118" font-size="11" fill="#788C5D" font-weight="600">all agree / majority</text>
+        <text x="625" y="262" font-size="11" fill="#D97757" font-weight="600">no majority · high std</text>
+
+        <rect x="630" y="128" width="180" height="50" rx="10" fill="#FFFFFF" stroke="#788C5D" stroke-width="1.5"/>
+        <text x="720" y="151" text-anchor="middle" font-weight="600">Logged verdict</text>
+        <text x="720" y="169" text-anchor="middle" fill="#5C5B55" font-size="11">automated, trusted</text>
+
+        <rect x="630" y="222" width="180" height="50" rx="10" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+        <text x="720" y="245" text-anchor="middle" font-weight="600">Annotation queue</text>
+        <text x="720" y="263" text-anchor="middle" fill="#5C5B55" font-size="11">hard cases · HITL</text>
+
+        <rect x="850" y="222" width="150" height="50" rx="10" fill="#FAF9F5" stroke="#788C5D" stroke-width="1.5"/>
+        <text x="925" y="245" text-anchor="middle" font-weight="600">Human reviewer</text>
+        <text x="925" y="263" text-anchor="middle" fill="#5C5B55" font-size="11">label · κ check</text>
+      </g>
+      <g stroke="#87867F" stroke-width="1.5" fill="none">
+        <path d="M150 165 L190 57" marker-end="url(#arrGray2)"/>
+        <path d="M150 180 L190 180" marker-end="url(#arrGray2)"/>
+        <path d="M150 195 L190 303" marker-end="url(#arrGray2)"/>
+        <path d="M390 57 L430 170" marker-end="url(#arrGray2)"/>
+        <path d="M390 180 L430 180" marker-end="url(#arrGray2)"/>
+        <path d="M390 303 L430 190" marker-end="url(#arrGray2)"/>
+      </g>
+      <g stroke="#788C5D" stroke-width="1.5" fill="none">
+        <path d="M590 170 L630 152" marker-end="url(#arrOlive2)"/>
+      </g>
+      <g stroke="#D97757" stroke-width="1.5" fill="none">
+        <path d="M590 190 L630 246" marker-end="url(#arrClay2)"/>
+        <path d="M810 247 L850 247" marker-end="url(#arrClay2)"/>
+        <path d="M925 272 L925 340 L85 340 L85 212" stroke-dasharray="6 4" marker-end="url(#arrClay2)"/>
+      </g>
+    </svg>
+  </div>
+  <span class="page-no">6 / 12</span>
+</section>
+
+<!-- 7 · the ceiling -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">baseline</div>
+    <h2>The ceiling is human–human, not 1.0.</h2>
+    <p class="sub">Demanding perfection from judges flatters bad work. Humans don't agree perfectly either.</p>
+    <div class="bar-row">
+      <div class="lab">Human-human (MT-Bench)</div>
+      <div class="bar"><div class="fill" style="background:#788C5D; width:81%;"></div></div>
+      <div class="val">0.81</div>
+    </div>
+    <div class="bar-row">
+      <div class="lab">GPT-4 vs human</div>
+      <div class="bar"><div class="fill" style="background:#D97757; width:85%;"></div></div>
+      <div class="val">0.85</div>
+    </div>
+    <div class="bar-row">
+      <div class="lab">Crowd vs expert (Arena)</div>
+      <div class="bar"><div class="fill" style="background:#788C5D; opacity:0.6; width:78%;"></div></div>
+      <div class="val">0.72–0.83</div>
+    </div>
+    <div class="bar-row">
+      <div class="lab">Expert vs expert (Arena)</div>
+      <div class="bar"><div class="fill" style="background:#4B5C39; width:85%;"></div></div>
+      <div class="val">0.79–0.90</div>
+    </div>
+    <p style="margin-top:18px;"><b>Target κ ≈ 0.65</b> — lower edge of the substantial-agreement band. Conservative. A panel that exceeds it is production-ready.</p>
+  </div>
+  <span class="page-no">7 / 12</span>
+</section>
+
+<!-- 7 · selection protocol -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">how to choose</div>
+    <h2>Selection is an optimisation problem.</h2>
+    <p class="sub">Don't pick "the best models." Pick the cheapest subset that hits the agreement target with diverse error profiles.</p>
+    <pre><span class="c"># Formal framing</span>
+<span class="k">minimize:</span>    cost(judges)
+<span class="k">subject to:</span>  κ(judges, human) ≥ 0.65
+<span class="k">constraint:</span>  no two judges from same provider family</pre>
+    <p style="margin-top:18px;font-size:15px;color:var(--gray-600);">Tornede et al. 2025 · multi-objective HPO. "Don't Pick the Highest-Performing Model" 2026 · greedy mutual-information selection.</p>
+  </div>
+  <span class="page-no">8 / 12</span>
+</section>
+
+<!-- 8 · the checklist -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">defaults</div>
+    <h2>The minimal-jury checklist.</h2>
+    <table>
+      <thead><tr><th>Decision</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td>Panel size</td><td><b>3 (odd)</b> — avoids ties, plateau at 3–5</td></tr>
+        <tr><td>Provider mix</td><td><b>One per family</b> — Anthropic + OpenAI + Google</td></tr>
+        <tr><td>Judge tier</td><td><b>Small / fast</b> — panel of small can beat one large</td></tr>
+        <tr><td>Aggregation (boolean)</td><td>k-of-N majority</td></tr>
+        <tr><td>Aggregation (numeric)</td><td>Mean + report std</td></tr>
+        <tr><td>Aggregation (categorical)</td><td>Mode + explicit <code>TIE</code> label</td></tr>
+        <tr><td>Aggregation (pairwise)</td><td>Majority over A / B / TIE</td></tr>
+        <tr><td>Position swap</td><td>For pairwise only</td></tr>
+        <tr><td>Per-judge params</td><td>Don't expose · one prompt, temp 0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <span class="page-no">9 / 12</span>
+</section>
+
+<!-- 9 · lessons -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">lessons from production</div>
+    <h2>What keeps showing up.</h2>
+    <div class="grid-2" style="margin-top:18px;">
+      <div class="card">
+        <div class="tag clay">setup</div>
+        <h4>Make TIE a real label</h4>
+        <p>Don't collapse 1:1:1 splits to null. TIE = ambiguous sample or unclear prompt — that's data.</p>
+      </div>
+      <div class="card">
+        <div class="tag clay">setup</div>
+        <h4>Position swap for pairwise</h4>
+        <p>Re-run hard A-vs-B as B-vs-A and average. Cheap fix for position bias.</p>
+      </div>
+      <div class="card">
+        <div class="tag olive">optimisation</div>
+        <h4>Self-judge exclusion</h4>
+        <p>If your generator is Claude, your judges cannot include Claude. Sibling-model agreement is fake.</p>
+      </div>
+      <div class="card">
+        <div class="tag olive">optimisation</div>
+        <h4>Provider &gt; model diversity</h4>
+        <p>Three different families &gt; three different OpenAI models. Mix providers first.</p>
+      </div>
+    </div>
+  </div>
+  <span class="page-no">10 / 12</span>
+</section>
+
+<!-- 10 · the ask (invert) -->
+<section class="slide invert">
+  <div class="slide-inner">
+    <div class="eyebrow">the ask</div>
+    <h2>Build the jury.</h2>
+    <p>Start with the minimum viable version · three judges, one real prompt, pairwise mode. Don't overthink it. The first run surfaces position bias, provider quirks, TIE behaviour — failure modes metrics alone won't catch.</p>
+    <ul style="margin-top:18px;">
+      <li><b>Run judges in parallel.</b> Concurrent API calls.</li>
+      <li><b>Cache repeated prompts.</b> Save cost during iteration.</li>
+      <li><b>Log disagreement explicitly.</b> Don't average too early.</li>
+      <li><b>Monitor per-judge κ</b> against a small labeled holdout.</li>
+      <li><b>Iterate on provider mix.</b> Not prompt engineering.</li>
+    </ul>
+  </div>
+  <span class="page-no">11 / 12</span>
+</section>
+
+<!-- 12 · close -->
+<section class="slide">
+  <div class="slide-inner">
+    <div class="eyebrow">close</div>
+    <h2>Weak judges. Diverse errors. Route the splits.</h2>
+    <p class="sub">3 providers, ~7× cheaper, human-level agreement. The rest is operational.</p>
+    <div class="footer">
+      <a href="jury-blog.html">↗ full blog</a>
+      <a href="jury-prototype.html">↗ interactive prototype</a>
+      <a href="../workflow-design.html">↗ workflow design</a>
+      <a href="https://orq.ai">orq.ai</a>
+    </div>
+  </div>
+  <span class="page-no">12 / 12</span>
+</section>
+
+<script>
+document.addEventListener("keydown", (e) => {
+  const slides = document.querySelectorAll(".slide");
+  const cur = Array.from(slides).findIndex(s => {
+    const r = s.getBoundingClientRect();
+    return r.top >= -20 && r.top < window.innerHeight / 2;
+  });
+  if (e.key === "ArrowDown" || e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+    e.preventDefault();
+    const next = Math.min(cur + 1, slides.length - 1);
+    slides[next].scrollIntoView({ behavior: "smooth" });
+  }
+  if (e.key === "ArrowUp" || e.key === "ArrowLeft" || e.key === "PageUp") {
+    e.preventDefault();
+    const prev = Math.max(cur - 1, 0);
+    slides[prev].scrollIntoView({ behavior: "smooth" });
+  }
+});
+</script>
+</body>
+</html>

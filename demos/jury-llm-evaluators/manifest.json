@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "slug": "jury-llm-evaluators",
+  "title": "Three judges beat one",
+  "authors": ["Bauke Brenninkmeijer"],
+  "published": "2026-05-21",
+  "updated": "2026-05-21",
+  "summary": "Notes on building an LLM jury — why panels beat single judges, and how to pick the right ones.",
+  "tags": ["evaluation", "llm-judge", "jury"],
+  "source": {
+    "repo": "orq-ai/research",
+    "path": "projects/hitl-evaluators/poc/jury",
+    "commit": "250c084a19c1c9f403e731c940f4cddeb13a001b",
+    "ingested": "2026-05-22"
+  },
+  "artifacts": [
+    {"kind": "doc",       "file": "doc.html",       "icon": "doc",    "label": "Read the blog post"},
+    {"kind": "slides",    "file": "slides.html",    "icon": "slides", "label": "View deck"},
+    {"kind": "explainer", "file": "explainer.html", "icon": "spark",  "label": "Interactive prototype"},
+    {"kind": "pdf",       "file": "slides.pdf",     "icon": "pdf",    "label": "Download deck PDF"}
+  ]
+}
