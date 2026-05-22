@@ -95,23 +95,19 @@ h2 {
 }
 
 .card {
-  background: var(--ivory);
-  border: 1px solid var(--gray-300);
-  border-radius: 12px;
-  padding: 28px;
+  background: var(--gray-150);
+  border-radius: 10px;
+  padding: 32px 28px 26px;
   text-decoration: none;
   color: inherit;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-left-color 0.15s ease;
-  border-left: 3px solid transparent;
+  transition: background 0.15s ease;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(20, 20, 19, 0.08);
-  border-left-color: var(--clay);
+  background: #ECE9DE;
 }
 
 .card .eyebrow {
@@ -175,22 +171,18 @@ h2 {
 
 .artifact-card {
   background: var(--gray-150);
-  border: 1px solid var(--gray-300);
   border-radius: 10px;
-  padding: 20px 22px;
+  padding: 22px 22px;
   text-decoration: none;
   color: var(--slate);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-left-color 0.15s ease;
-  border-left: 3px solid transparent;
+  transition: background 0.15s ease;
 }
 
 .artifact-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(20, 20, 19, 0.08);
-  border-left-color: var(--clay);
+  background: #ECE9DE;
 }
 
 .artifact-icon {
@@ -285,11 +277,12 @@ h2 {
 }
 
 .prose blockquote {
-  border-left: 3px solid var(--clay);
-  padding: 10px 18px;
+  padding: 14px 20px;
   margin: 20px 0;
   background: var(--gray-150);
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
+  font-style: italic;
+  color: var(--gray-700);
 }
 
 .prose blockquote p {
